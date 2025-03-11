@@ -23,6 +23,7 @@
 
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
+#import <AVFoundation/AVSampleBufferDisplayLayer.h>
 
 class MVKInstance;
 class MVKSwapchain;
@@ -48,15 +49,18 @@ public:
 
     /** Returns the CAMetalLayer underlying this surface. */
 	CAMetalLayer* getCAMetalLayer();
+    
+    /** Returns the AVSampleBufferDisplayLayer underlying this surface. */
+    AVSampleBufferDisplayLayer* getAVSampleBufferDisplayLayer();
 
 	/** Returns the extent of this surface. */
 	VkExtent2D getExtent();
 
-	/** Returns the extent for which the underlying CAMetalLayer will not need to be scaled when composited. */
+	/** Returns the extent for which the underlying layer will not need to be scaled when composited. */
 	VkExtent2D getNaturalExtent();
 
 	/** Returns whether this surface is headless. */
-	bool isHeadless() { return !_mtlCAMetalLayer && wasConfigurationSuccessful(); }
+	bool isHeadless() { return !_mtlCAMetalLayer && !_avSampleBufferDisplayLayer && wasConfigurationSuccessful(); }
 
 #pragma mark Construction
 
@@ -71,6 +75,11 @@ public:
 	MVKSurface(MVKInstance* mvkInstance,
 			   const Vk_PLATFORM_SurfaceCreateInfoMVK* pCreateInfo,
 			   const VkAllocationCallbacks* pAllocator);
+               
+    // Add constructor for AVSampleBufferDisplayLayer
+    MVKSurface(MVKInstance* mvkInstance,
+               AVSampleBufferDisplayLayer* layer,
+               const VkAllocationCallbacks* pAllocator);
 
 	~MVKSurface() override;
 
@@ -80,11 +89,13 @@ protected:
 	void propagateDebugName() override {}
 	void setActiveSwapchain(MVKSwapchain* swapchain);
 	void initLayer(CAMetalLayer* mtlLayer, const char* vkFuncName, bool isHeadless);
+    void initAVLayer(AVSampleBufferDisplayLayer* avLayer, const char* vkFuncName);
 	void releaseLayer();
 
 	std::mutex _layerLock;
 	MVKInstance* _mvkInstance = nullptr;
 	CAMetalLayer* _mtlCAMetalLayer = nil;
+    AVSampleBufferDisplayLayer* _avSampleBufferDisplayLayer = nil;
 	MVKBlockObserver* _layerObserver = nil;
 	MVKSwapchain* _activeSwapchain = nullptr;
 };

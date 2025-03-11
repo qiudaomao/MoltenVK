@@ -722,7 +722,13 @@ VkResult MVKQueuePresentSurfaceSubmission::execute() {
 	addPerformanceInterval(getPerformanceStats().queue.waitPresentSwapchains, _creationTime);
 
 	for (int i = 0; i < _presentInfo.size(); i++ ) {
-		setConfigurationResult(_presentInfo[i].presentableImage->presentCAMetalDrawable(mtlCmdBuff, _presentInfo[i]));
+        // Choose the appropriate presentation method based on the layer type
+        MVKSwapchain* swapchain = _presentInfo[i].presentableImage->_swapchain;
+        if (swapchain->getAVSampleBufferDisplayLayer()) {
+            setConfigurationResult(_presentInfo[i].presentableImage->presentAVSampleBuffer(mtlCmdBuff, _presentInfo[i]));
+        } else {
+            setConfigurationResult(_presentInfo[i].presentableImage->presentCAMetalDrawable(mtlCmdBuff, _presentInfo[i]));
+        }
 	}
 
 	if (_queue->_queueFamily->getIndex() == getMVKConfig().defaultGPUCaptureScopeQueueFamilyIndex &&

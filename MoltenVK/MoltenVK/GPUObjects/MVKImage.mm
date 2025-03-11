@@ -17,18 +17,25 @@
  */
 
 #include "MVKImage.h"
-#include "MVKQueue.h"
 #include "MVKSwapchain.h"
-#include "MVKSurface.h"
-#include "MVKCommandBuffer.h"
-#include "MVKCmdDebug.h"
+#include "MVKInstance.h"
+#include "MVKQueue.h"
+#include "MVKDevice.h"
 #include "MVKFoundation.h"
 #include "MVKOSExtensions.h"
-#include "MVKCodec.h"
+#include "MVKCommandBuffer.h"
+#include "MVKCommandEncoderState.h"
+#include "MVKRenderPass.h"
+#include "MVKCmdDebug.h"
+#include "mvk_datatypes.hpp"
+#include "MVKEnvironment.h"
 
+#import "CAMetalLayer+MoltenVK.h"
+#import "AVSampleBufferDisplayLayer+MoltenVK.h"
 #import "MTLTextureDescriptor+MoltenVK.h"
 #import "MTLSamplerDescriptor+MoltenVK.h"
-#import "CAMetalLayer+MoltenVK.h"
+#import <CoreVideo/CoreVideo.h>
+#import <AVFoundation/AVFoundation.h>
 
 using namespace std;
 using namespace SPIRV_CROSS_NAMESPACE;
@@ -1515,6 +1522,7 @@ VkResult MVKPresentableSwapchainImage::acquireAndSignalWhenAvailable(MVKSemaphor
 id<CAMetalDrawable> MVKPresentableSwapchainImage::getCAMetalDrawable() {
 
 	if (_mtlTextureHeadless) { return nil; }	// If headless, there is no drawable.
+	if (_swapchain->getAVSampleBufferDisplayLayer()) { return nil; } // If using AVSampleBufferDisplayLayer, there is no drawable.
 
 	if ( !_mtlDrawable ) {
 		@autoreleasepool {
@@ -1539,7 +1547,42 @@ id<CAMetalDrawable> MVKPresentableSwapchainImage::getCAMetalDrawable() {
 
 // If not headless, retrieve the MTLTexture directly from the CAMetalDrawable.
 id<MTLTexture> MVKPresentableSwapchainImage::getMTLTexture(uint8_t planeIndex) {
-	return _mtlTextureHeadless ? _mtlTextureHeadless : getCAMetalDrawable().texture;
+    // For headless mode, return the headless texture
+    if (_mtlTextureHeadless) { 
+        return _mtlTextureHeadless; 
+    }
+    
+    // If we're using AVSampleBufferDisplayLayer, use or create a texture
+    if (_swapchain->getAVSampleBufferDisplayLayer()) {
+        // Create texture for AVSampleBufferDisplayLayer if it doesn't exist
+        if (!_mtlTexture) {
+            @autoreleasepool {
+                MTLPixelFormat pixFormat = _swapchain->getAVSampleBufferDisplayLayer().pixelFormat;
+                VkExtent2D extent = _swapchain->getImageExtent();
+                
+                MTLTextureDescriptor* texDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pixFormat
+                                                                                                  width:extent.width
+                                                                                                 height:extent.height
+                                                                                              mipmapped:NO];
+                texDesc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
+                texDesc.storageMode = MTLStorageModePrivate;
+                
+                MVKLogInfo("Creating texture for AVSampleBufferDisplayLayer with size (%d, %d) and format %lu", 
+                          extent.width, extent.height, (unsigned long)pixFormat);
+                
+                _mtlTexture = [[getMTLDevice() newTextureWithDescriptor:texDesc] retain]; // retained
+                
+                if (!_mtlTexture) {
+                    MVKLogError("Failed to create texture for AVSampleBufferDisplayLayer");
+                    setConfigurationResult(VK_ERROR_OUT_OF_DEVICE_MEMORY);
+                }
+            }
+        }
+        return _mtlTexture;
+    }
+    
+    // Otherwise use CAMetalDrawable for standard path
+    return getCAMetalDrawable().texture;
 }
 
 // Present the drawable and make myself available only once the command buffer has completed.
@@ -1670,21 +1713,29 @@ void MVKPresentableSwapchainImage::endPresentation(const MVKImagePresentInfo& pr
 void MVKPresentableSwapchainImage::releaseMetalDrawable() {
     [_mtlDrawable release];
 	_mtlDrawable = nil;
+    
+    // Also release the texture for AVSampleBufferDisplayLayer if it exists
+    [_mtlTexture release];
+    _mtlTexture = nil;
 }
 
 // Signal, untrack, and release any signalers that are tracking.
 // Release the drawable before the lock, as it may trigger completion callback.
 void MVKPresentableSwapchainImage::makeAvailable() {
 	releaseMetalDrawable();
+
 	lock_guard<mutex> lock(_availabilityLock);
 
+	_beginPresentTime = 0;
+
+	// For each signaler that is tracking, signal and untrack it.
+	for (auto& signaler : _availabilitySignalers) { signalAndUntrack(signaler); }
+	_availabilitySignalers.clear();
+	
+	// Mark this image as available if not already marked as such.
 	if ( !_availability.isAvailable ) {
-		signalAndUntrack(_preSignaler);
-		for (auto& sig : _availabilitySignalers) {
-			signalAndUntrack(sig);
-		}
-		_availabilitySignalers.clear();
 		_availability.isAvailable = true;
+		_availability.acquisitionID = _swapchain->getNextAcquisitionID();
 	}
 }
 
@@ -1725,6 +1776,7 @@ void MVKPresentableSwapchainImage::destroy() {
 // Ensure they are signaled and untracked so the fences and semaphores will be released.
 MVKPresentableSwapchainImage::~MVKPresentableSwapchainImage() {
 	makeAvailable();
+    releaseMetalDrawable();  // Make sure to release all Metal resources
 }
 
 
@@ -2607,4 +2659,247 @@ void MVKSampler::detachMemory() {
 		[_mtlSamplerState release];
 		_mtlSamplerState = nil;
 	}
+}
+
+// Create a CVPixelBuffer from a MTLTexture
+CVPixelBufferRef MVKPresentableSwapchainImage::getPixelBufferFromMTLTexture(id<MTLTexture> mtlTexture) {
+    if (!mtlTexture) {
+        MVKLogError("Cannot create CVPixelBuffer from nil MTLTexture");
+        return nil;
+    }
+    
+    CVPixelBufferRef pixelBuffer = nil;
+    MTLPixelFormat mtlFormat = mtlTexture.pixelFormat;
+    OSType cvFormat;
+    
+    // Convert MTLPixelFormat to compatible CVPixelBuffer format
+    switch (mtlFormat) {
+        case MTLPixelFormatBGRA8Unorm:
+        case MTLPixelFormatBGRA8Unorm_sRGB:
+            cvFormat = kCVPixelFormatType_32BGRA;
+            break;
+        case MTLPixelFormatRGBA8Unorm:
+        case MTLPixelFormatRGBA8Unorm_sRGB:
+            cvFormat = kCVPixelFormatType_32RGBA;
+            break;
+        default:
+            MVKLogInfo("Unsupported MTLPixelFormat %lu for CVPixelBuffer conversion, falling back to 32BGRA", 
+                     (unsigned long)mtlFormat);
+            cvFormat = kCVPixelFormatType_32BGRA;
+            break;
+    }
+    
+    // Create a IOSurface-backed CVPixelBuffer
+    NSDictionary* pixelBufferAttributes = @{
+        (NSString*)kCVPixelBufferPixelFormatTypeKey: @(cvFormat),
+        (NSString*)kCVPixelBufferWidthKey: @(mtlTexture.width),
+        (NSString*)kCVPixelBufferHeightKey: @(mtlTexture.height),
+        (NSString*)kCVPixelBufferMetalCompatibilityKey: @YES,
+        (NSString*)kCVPixelBufferIOSurfacePropertiesKey: @{}
+    };
+    
+    CVReturn cvReturn = CVPixelBufferCreate(kCFAllocatorDefault,
+                              mtlTexture.width,
+                              mtlTexture.height,
+                              cvFormat,
+                              (__bridge CFDictionaryRef)pixelBufferAttributes,
+                              &pixelBuffer);
+    
+    if (cvReturn != kCVReturnSuccess) {
+        MVKLogError("Failed to create CVPixelBuffer: error %d", cvReturn);
+        return nil;
+    }
+    
+    // Lock the pixel buffer for modification
+    CVPixelBufferLockBaseAddress(pixelBuffer, 0);
+    
+    @autoreleasepool {
+        // Create a temporary texture to use as an intermediate with a shared storage mode
+        MTLTextureDescriptor* texDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:mtlFormat
+                                                                                          width:mtlTexture.width
+                                                                                         height:mtlTexture.height
+                                                                                      mipmapped:NO];
+        texDesc.usage = MTLTextureUsageShaderRead;
+        texDesc.storageMode = MTLStorageModeShared;
+        
+        id<MTLTexture> destTexture = [mtlTexture.device newTextureWithDescriptor:texDesc];
+        if (!destTexture) {
+            MVKLogError("Failed to create intermediate shared-storage texture for pixel buffer conversion");
+            CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+            CVPixelBufferRelease(pixelBuffer);
+            return nil;
+        }
+        
+        // Create a command buffer to copy from private to shared storage
+        id<MTLCommandQueue> commandQueue = [mtlTexture.device newCommandQueue];
+        id<MTLCommandBuffer> commandBuffer = [commandQueue commandBuffer];
+        
+        // Copy from source texture to intermediate shared texture
+        id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
+        [blitEncoder copyFromTexture:mtlTexture
+                         sourceSlice:0
+                         sourceLevel:0
+                        sourceOrigin:MTLOriginMake(0, 0, 0)
+                          sourceSize:MTLSizeMake(mtlTexture.width, mtlTexture.height, 1)
+                           toTexture:destTexture
+                    destinationSlice:0
+                    destinationLevel:0
+                   destinationOrigin:MTLOriginMake(0, 0, 0)];
+        [blitEncoder endEncoding];
+        
+        // Execute and wait for completion
+        [commandBuffer commit];
+        [commandBuffer waitUntilCompleted];
+        
+        // Copy from the shared texture to the pixel buffer
+        void* pixelBufferBaseAddress = CVPixelBufferGetBaseAddress(pixelBuffer);
+        size_t bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer);
+        
+        MTLRegion region = MTLRegionMake2D(0, 0, mtlTexture.width, mtlTexture.height);
+        [destTexture getBytes:pixelBufferBaseAddress
+                  bytesPerRow:bytesPerRow
+                   fromRegion:region
+                  mipmapLevel:0];
+        
+        // Release resources within autorelease pool
+        [destTexture release];
+        [commandQueue release];
+    }
+    
+    // Unlock the pixel buffer
+    CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+    
+    return pixelBuffer;
+}
+
+// Create an AVSampleBuffer from a CVPixelBuffer
+AVSampleBuffer* MVKPresentableSwapchainImage::getSampleBufferFromPixelBuffer(CVPixelBufferRef pixelBuffer) {
+    if (!pixelBuffer) return nil;
+    
+    CMVideoFormatDescriptionRef formatDescription = nil;
+    CMVideoFormatDescriptionCreateForImageBuffer(kCFAllocatorDefault, pixelBuffer, &formatDescription);
+    
+    CMSampleTimingInfo timing = {
+        .duration = CMTimeMake(1, 30), // 30 fps
+        .presentationTimeStamp = CMTimeMake(0, 30),
+        .decodeTimeStamp = CMTimeMake(0, 30)
+    };
+    
+    CMSampleBufferRef sampleBuffer = nil;
+    CMSampleBufferCreateReadyWithImageBuffer(kCFAllocatorDefault,
+                                            pixelBuffer,
+                                            formatDescription,
+                                            &timing,
+                                            &sampleBuffer);
+    
+    CFRelease(formatDescription);
+    
+    return (__bridge AVSampleBuffer*)sampleBuffer;
+}
+
+// Present to AVSampleBufferDisplayLayer
+VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer> mtlCmdBuff,
+                                                            MVKImagePresentInfo presentInfo) {
+    // Get the AVSampleBufferDisplayLayer
+    AVSampleBufferDisplayLayer *avLayer = _swapchain->getAVSampleBufferDisplayLayer();
+    if (!avLayer) {
+        return VK_ERROR_SURFACE_LOST_KHR;
+    }
+    
+    // Apply the watermark if necessary
+    _swapchain->renderWatermark(getMTLTexture(0), mtlCmdBuff);
+    
+    // Apply any requested present mode changes
+    if (presentInfo.presentMode != VK_PRESENT_MODE_MAX_ENUM_KHR) {
+        avLayer.displaySyncEnabledMVK = (presentInfo.presentMode != VK_PRESENT_MODE_IMMEDIATE_KHR);
+    }
+    
+    // Get presentation signaler
+    MVKSwapchainSignaler signaler = getPresentationSignaler();
+    
+    // Make sure we have a valid texture for presentation
+    __block id<MTLTexture> mtlTex = getMTLTexture(0);
+    if (!mtlTex) {
+        signalAndUntrack(signaler);
+        return VK_ERROR_SURFACE_LOST_KHR;
+    }
+    
+    // Now we need to convert the MTLTexture to a CVPixelBuffer
+    // Add a final blit to ensure the texture is up to date
+    id<MTLBlitCommandEncoder> blitEncoder = [mtlCmdBuff blitCommandEncoder];
+    [blitEncoder endEncoding];
+    
+    // Mark the beginning of presentation
+    beginPresentation(presentInfo);
+    
+    // On scheduled handler, convert texture to pixel buffer and enqueue to AVSampleBufferDisplayLayer
+    [mtlCmdBuff addScheduledHandler:^(id<MTLCommandBuffer> mcb) {
+        // Convert texture to pixel buffer
+        CVPixelBufferRef pixelBuffer = getPixelBufferFromMTLTexture(mtlTex);
+        if (!pixelBuffer) {
+            MVKLogError("Failed to create CVPixelBuffer from MTLTexture for AVSampleBufferDisplayLayer");
+            endPresentation(presentInfo, signaler);
+            return;
+        }
+        
+        // Create format description and timing info for the sample buffer
+        CMVideoFormatDescriptionRef formatDescription = nil;
+        CMVideoFormatDescriptionCreateForImageBuffer(kCFAllocatorDefault, pixelBuffer, &formatDescription);
+        
+        CMSampleTimingInfo timing = {
+            .duration = CMTimeMake(1, 30), // 30 fps
+            .presentationTimeStamp = CMTimeMake(0, 30),
+            .decodeTimeStamp = CMTimeMake(0, 30)
+        };
+        
+        // Use desired presentation time if provided
+        if (presentInfo.desiredPresentTime) {
+            double seconds = (double)presentInfo.desiredPresentTime * 1.0e-9;
+            timing.presentationTimeStamp = CMTimeMakeWithSeconds(seconds, 1000000000);
+        }
+        
+        // Create the sample buffer
+        CMSampleBufferRef sampleBuffer = nil;
+        OSStatus status = CMSampleBufferCreateReadyWithImageBuffer(kCFAllocatorDefault,
+                                                pixelBuffer,
+                                                formatDescription,
+                                                &timing,
+                                                &sampleBuffer);
+        
+        // Clean up format description
+        CFRelease(formatDescription);
+        
+        if (status == noErr && sampleBuffer) {
+            // Enqueue the sample buffer
+            [avLayer enqueueSampleBuffer:sampleBuffer];
+            
+            // Set video gravity (equivalent to contentsGravity in CALayer)
+            avLayer.videoGravity = AVLayerVideoGravityResizeAspect;
+            
+            CFRelease(sampleBuffer);
+            
+            // Signal completion
+            endPresentation(presentInfo, signaler);
+        } else {
+            MVKLogError("Failed to create CMSampleBuffer for AVSampleBufferDisplayLayer");
+            endPresentation(presentInfo, signaler);
+        }
+        
+        // Release pixel buffer
+        CVPixelBufferRelease(pixelBuffer);
+    }];
+    
+    // Ensure this image and fence are not destroyed while awaiting MTLCommandBuffer completion
+    retain();
+    auto* fence = presentInfo.fence;
+    if (fence) { fence->retain(); }
+    [mtlCmdBuff addCompletedHandler: ^(id<MTLCommandBuffer> mcb) {
+        signal(fence);
+        if (fence) { fence->release(); }
+        release();
+    }];
+    
+    signal(signaler.semaphore, signaler.semaphoreSignalToken, mtlCmdBuff);
+    
+    return getConfigurationResult();
 }

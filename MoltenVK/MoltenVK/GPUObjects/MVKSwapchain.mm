@@ -29,6 +29,7 @@
 #include <libkern/OSByteOrder.h>
 
 #import "CAMetalLayer+MoltenVK.h"
+#import "AVSampleBufferDisplayLayer+MoltenVK.h"
 #import "MVKBlockObserver.h"
 
 
@@ -48,6 +49,8 @@ void MVKSwapchain::propagateDebugName() {
 }
 
 CAMetalLayer* MVKSwapchain::getCAMetalLayer() { return _surface->getCAMetalLayer(); }
+
+AVSampleBufferDisplayLayer* MVKSwapchain::getAVSampleBufferDisplayLayer() { return _surface->getAVSampleBufferDisplayLayer(); }
 
 bool MVKSwapchain::isHeadless() { return _surface->isHeadless(); }
 
@@ -276,7 +279,12 @@ void MVKSwapchain::endPresentation(const MVKImagePresentInfo& presentInfo, uint6
 // The drawableSize will be set to a correct size by the next swapchain created on the same surface.
 void MVKSwapchain::forceUnpresentedImageCompletion() {
 	if (_unpresentedImageCount) {
-		getCAMetalLayer().drawableSize = { 1,1 };
+		if (getCAMetalLayer()) {
+            getCAMetalLayer().drawableSize = { 1,1 };
+        } else if (getAVSampleBufferDisplayLayer()) {
+            // For AVSampleBufferDisplayLayer, we can flush the layer to force completion
+            [getAVSampleBufferDisplayLayer() flushAndRemoveImage];
+        }
 	}
 }
 
@@ -364,9 +372,9 @@ void MVKSwapchain::setHDRMetadataEXT(const VkHdrMetadataEXT& metadata) {
 	auto* mtlLayer = getCAMetalLayer();
 	mtlLayer.EDRMetadata = caMetadata;
 	mtlLayer.wantsExtendedDynamicRangeContent = YES;
-	[caMetadata release];
-	[colorVolData release];
-	[lightLevelData release];
+	//[caMetadata release];
+	//[colorVolData release];
+	//[lightLevelData release];
 #endif
 }
 
@@ -421,8 +429,18 @@ MVKSwapchain::MVKSwapchain(MVKDevice* device, const VkSwapchainCreateInfoKHR* pC
 	uint32_t imgCnt = mvkClamp(pCreateInfo->minImageCount,
 							   mtlFeats.minSwapchainImageCount,
 							   mtlFeats.maxSwapchainImageCount);
-	initCAMetalLayer(pCreateInfo, pScalingInfo, imgCnt);
-    initSurfaceImages(pCreateInfo, imgCnt);		// After initCAMetalLayer()
+    
+    // Initialize the appropriate layer type based on what's available
+    if (getCAMetalLayer()) {
+        initCAMetalLayer(pCreateInfo, pScalingInfo, imgCnt);
+    } else if (getAVSampleBufferDisplayLayer()) {
+        initAVSampleBufferDisplayLayer(pCreateInfo, pScalingInfo, imgCnt);
+    } else {
+        setConfigurationResult(reportError(VK_ERROR_NATIVE_WINDOW_IN_USE_KHR, "vkCreateSwapchainKHR(): No valid CAMetalLayer or AVSampleBufferDisplayLayer found for rendering."));
+        return;
+    }
+    
+    initSurfaceImages(pCreateInfo, imgCnt);
 }
 
 // kCAGravityResize is the Metal default
@@ -556,6 +574,78 @@ void MVKSwapchain::initCAMetalLayer(const VkSwapchainCreateInfoKHR* pCreateInfo,
 	// TODO: set additional CAMetalLayer properties before extracting drawables:
 	//	- presentsWithTransaction
 	//	- drawsAsynchronously
+}
+
+// Initializes the AVSampleBufferDisplayLayer underlying the surface of this swapchain.
+void MVKSwapchain::initAVSampleBufferDisplayLayer(const VkSwapchainCreateInfoKHR* pCreateInfo,
+                                                 VkSwapchainPresentScalingCreateInfoEXT* pScalingInfo,
+                                                 uint32_t imgCnt) {
+    
+    auto* avLayer = getAVSampleBufferDisplayLayer();
+    if (!avLayer || getIsSurfaceLost()) { return; }
+    
+    // Setup AVSampleBufferDisplayLayer using our Metal extension properties
+    avLayer.device = getMTLDevice();
+    avLayer.pixelFormat = getPixelFormats()->getMTLPixelFormat(pCreateInfo->imageFormat);
+    avLayer.maximumDrawableCountMVK = imgCnt;
+    avLayer.displaySyncEnabledMVK = (pCreateInfo->presentMode != VK_PRESENT_MODE_IMMEDIATE_KHR);
+    
+    // Handle color space settings
+    switch (pCreateInfo->imageColorSpace) {
+        case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
+            avLayer.colorspaceNameMVK = kCGColorSpaceSRGB;
+            avLayer.wantsExtendedDynamicRangeContentMVK = NO;
+            break;
+        case VK_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT:
+            avLayer.colorspaceNameMVK = kCGColorSpaceDisplayP3;
+            avLayer.wantsExtendedDynamicRangeContentMVK = YES;
+            break;
+        case VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT:
+            avLayer.colorspaceNameMVK = kCGColorSpaceExtendedLinearSRGB;
+            avLayer.wantsExtendedDynamicRangeContentMVK = YES;
+            break;
+        case VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT:
+            avLayer.colorspaceNameMVK = kCGColorSpaceExtendedSRGB;
+            avLayer.wantsExtendedDynamicRangeContentMVK = YES;
+            break;
+        case VK_COLOR_SPACE_DISPLAY_P3_LINEAR_EXT:
+            avLayer.colorspaceNameMVK = kCGColorSpaceExtendedLinearDisplayP3;
+            avLayer.wantsExtendedDynamicRangeContentMVK = YES;
+            break;
+        case VK_COLOR_SPACE_DCI_P3_NONLINEAR_EXT:
+            avLayer.colorspaceNameMVK = kCGColorSpaceDCIP3;
+            avLayer.wantsExtendedDynamicRangeContentMVK = YES;
+            break;
+        case VK_COLOR_SPACE_BT709_NONLINEAR_EXT:
+            avLayer.colorspaceNameMVK = kCGColorSpaceITUR_709;
+            avLayer.wantsExtendedDynamicRangeContentMVK = NO;
+            break;
+        case VK_COLOR_SPACE_BT2020_LINEAR_EXT:
+            avLayer.colorspaceNameMVK = kCGColorSpaceExtendedLinearITUR_2020;
+            avLayer.wantsExtendedDynamicRangeContentMVK = YES;
+            break;
+#if MVK_XCODE_12
+        case VK_COLOR_SPACE_HDR10_ST2084_EXT:
+            avLayer.colorspaceNameMVK = kCGColorSpaceITUR_2100_PQ;
+            avLayer.wantsExtendedDynamicRangeContentMVK = YES;
+            break;
+        case VK_COLOR_SPACE_HDR10_HLG_EXT:
+            avLayer.colorspaceNameMVK = kCGColorSpaceITUR_2100_HLG;
+            avLayer.wantsExtendedDynamicRangeContentMVK = YES;
+            break;
+#endif
+        case VK_COLOR_SPACE_ADOBERGB_NONLINEAR_EXT:
+            avLayer.colorspaceNameMVK = kCGColorSpaceAdobeRGB1998;
+            avLayer.wantsExtendedDynamicRangeContentMVK = NO;
+            break;
+        case VK_COLOR_SPACE_PASS_THROUGH_EXT:
+            avLayer.colorspace = nil;
+            avLayer.wantsExtendedDynamicRangeContentMVK = NO;
+            break;
+        default:
+            setConfigurationResult(reportError(VK_ERROR_FORMAT_NOT_SUPPORTED, "vkCreateSwapchainKHR(): Metal does not support VkColorSpaceKHR value %d for AVSampleBufferDisplayLayer.", pCreateInfo->imageColorSpace));
+            break;
+    }
 }
 
 // Initializes the array of images used for the surface of this swapchain.
