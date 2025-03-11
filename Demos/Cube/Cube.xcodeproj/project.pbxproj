@@ -32,6 +32,16 @@
 		A9F4D8802B88F7B1004AD576 /* MoltenVK.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A9F4D88A2B8A9C11004AD576 /* MoltenVK.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */; };
 		A9F4D88B2B8A9C11004AD576 /* MoltenVK.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E9803A752D80892500ED6CB2 /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = A9B67B761C3AAE9800373FFD /* Icon.png */; };
+		E9803A772D80892500ED6CB2 /* Default~ipad.png in Resources */ = {isa = PBXBuildFile; fileRef = A9B67B751C3AAE9800373FFD /* Default~ipad.png */; };
+		E9803A782D80892500ED6CB2 /* Default-568h@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = A9B67B741C3AAE9800373FFD /* Default-568h@2x.png */; };
+		E9803A7E2D80892500ED6CB2 /* MoltenVK.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */; };
+		E9803A802D80892500ED6CB2 /* MoltenVK.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E9803A902D80894000ED6CB2 /* AVDemoViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E9803A8C2D80894000ED6CB2 /* AVDemoViewController.m */; };
+		E9803A912D80894000ED6CB2 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = E9803A8A2D80894000ED6CB2 /* AppDelegate.m */; };
+		E9803A922D80894000ED6CB2 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E9803A8D2D80894000ED6CB2 /* main.m */; };
+		E9803A942D80894000ED6CB2 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = E9803A872D80894000ED6CB2 /* Main.storyboard */; };
+		E9803A952D80894000ED6CB2 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = E9803A8E2D80894000ED6CB2 /* README.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -64,6 +74,17 @@
 			dstSubfolderSpec = 10;
 			files = (
 				A9F4D88B2B8A9C11004AD576 /* MoltenVK.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9803A7F2D80892500ED6CB2 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				E9803A802D80892500ED6CB2 /* MoltenVK.xcframework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -105,6 +126,16 @@
 		A9B734FE2576E04000455E2A /* Cube.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Cube.entitlements; sourceTree = "<group>"; };
 		A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = MoltenVK.xcframework; path = ../../Package/Latest/MoltenVK/dynamic/MoltenVK.xcframework; sourceTree = "<group>"; };
 		A9F4D8862B8A9BD8004AD576 /* MoltenVK.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = MoltenVK.xcframework; path = ../../Package/Latest/MoltenVK/dynamic/MoltenVK.xcframework; sourceTree = "<group>"; };
+		E9803A842D80892500ED6CB2 /* Cube-iOS-AV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cube-iOS-AV.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9803A852D80892600ED6CB2 /* Cube-iOS copy2-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "Cube-iOS copy2-Info.plist"; path = "/Users/zfu/proj/github/tvos.mpv.player/contrib/KSPlayer_LGPL/FFmpegKit/.Script/vulkan-v1.2.11-sample/Demos/Cube/Cube-iOS copy2-Info.plist"; sourceTree = "<absolute>"; };
+		E9803A862D80894000ED6CB2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		E9803A872D80894000ED6CB2 /* Main.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Main.storyboard; sourceTree = "<group>"; };
+		E9803A892D80894000ED6CB2 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		E9803A8A2D80894000ED6CB2 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		E9803A8B2D80894000ED6CB2 /* AVDemoViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AVDemoViewController.h; sourceTree = "<group>"; };
+		E9803A8C2D80894000ED6CB2 /* AVDemoViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AVDemoViewController.m; sourceTree = "<group>"; };
+		E9803A8D2D80894000ED6CB2 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		E9803A8E2D80894000ED6CB2 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,6 +163,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E9803A7D2D80892500ED6CB2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E9803A7E2D80892500ED6CB2 /* MoltenVK.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -141,6 +180,7 @@
 				A9B53B271C3AC0BE00ABC6F6 /* Cube.app */,
 				A9B53B431C3AC15200ABC6F6 /* Cube.app */,
 				A93DBF4B24A2A4D500079F64 /* Cube.app */,
+				E9803A842D80892500ED6CB2 /* Cube-iOS-AV.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -152,8 +192,10 @@
 				A904B52C1C9A08C80008C013 /* cube */,
 				A9B67B6A1C3AAE9800373FFD /* iOS */,
 				A9B67B811C3AAEA200373FFD /* macOS */,
+				E9803A8F2D80894000ED6CB2 /* AVDemo */,
 				19C28FACFE9D520D11CA2CBB /* Products */,
 				A9C2ABA82185085B00DDBC03 /* Frameworks */,
+				E9803A852D80892600ED6CB2 /* Cube-iOS copy2-Info.plist */,
 			);
 			name = CustomTemplate;
 			sourceTree = "<group>";
@@ -233,6 +275,29 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		E9803A882D80894000ED6CB2 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E9803A862D80894000ED6CB2 /* Info.plist */,
+				E9803A872D80894000ED6CB2 /* Main.storyboard */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		E9803A8F2D80894000ED6CB2 /* AVDemo */ = {
+			isa = PBXGroup;
+			children = (
+				E9803A882D80894000ED6CB2 /* Resources */,
+				E9803A892D80894000ED6CB2 /* AppDelegate.h */,
+				E9803A8A2D80894000ED6CB2 /* AppDelegate.m */,
+				E9803A8B2D80894000ED6CB2 /* AVDemoViewController.h */,
+				E9803A8C2D80894000ED6CB2 /* AVDemoViewController.m */,
+				E9803A8D2D80894000ED6CB2 /* main.m */,
+				E9803A8E2D80894000ED6CB2 /* README.md */,
+			);
+			path = AVDemo;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -290,6 +355,24 @@
 			productReference = A9B53B431C3AC15200ABC6F6 /* Cube.app */;
 			productType = "com.apple.product-type.application";
 		};
+		E9803A732D80892500ED6CB2 /* Cube-iOS-AV */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E9803A812D80892500ED6CB2 /* Build configuration list for PBXNativeTarget "Cube-iOS-AV" */;
+			buildPhases = (
+				E9803A742D80892500ED6CB2 /* Resources */,
+				E9803A792D80892500ED6CB2 /* Sources */,
+				E9803A7D2D80892500ED6CB2 /* Frameworks */,
+				E9803A7F2D80892500ED6CB2 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Cube-iOS-AV";
+			productName = foo;
+			productReference = E9803A842D80892500ED6CB2 /* Cube-iOS-AV.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -324,6 +407,7 @@
 				A9B53B291C3AC15200ABC6F6 /* Cube-iOS */,
 				A93DBF3A24A2A4D500079F64 /* Cube-tvOS */,
 				A9B53B0F1C3AC0BE00ABC6F6 /* Cube-macOS */,
+				E9803A732D80892500ED6CB2 /* Cube-iOS-AV */,
 			);
 		};
 /* End PBXProject section */
@@ -360,6 +444,18 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E9803A742D80892500ED6CB2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E9803A752D80892500ED6CB2 /* Icon.png in Resources */,
+				E9803A772D80892500ED6CB2 /* Default~ipad.png in Resources */,
+				E9803A782D80892500ED6CB2 /* Default-568h@2x.png in Resources */,
+				E9803A942D80894000ED6CB2 /* Main.storyboard in Resources */,
+				E9803A952D80894000ED6CB2 /* README.md in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -390,6 +486,16 @@
 				A9B53B341C3AC15200ABC6F6 /* DemoViewController.m in Sources */,
 				A9B53B351C3AC15200ABC6F6 /* AppDelegate.m in Sources */,
 				A9B53B361C3AC15200ABC6F6 /* main.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E9803A792D80892500ED6CB2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E9803A902D80894000ED6CB2 /* AVDemoViewController.m in Sources */,
+				E9803A912D80894000ED6CB2 /* AppDelegate.m in Sources */,
+				E9803A922D80894000ED6CB2 /* main.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -504,7 +610,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = SGZE33W2XX;
 				GCC_PREFIX_HEADER = "$(SRCROOT)/iOS/Prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -534,7 +640,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = SGZE33W2XX;
 				GCC_PREFIX_HEADER = "$(SRCROOT)/iOS/Prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -621,6 +727,66 @@
 			};
 			name = Release;
 		};
+		E9803A822D80892500ED6CB2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Cube.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SGZE33W2XX;
+				GCC_PREFIX_HEADER = "$(SRCROOT)/iOS/Prefix.pch";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					MVK_SAMP_CUBE,
+				);
+				INFOPLIST_FILE = "Cube-iOS copy2-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				"IPHONEOS_DEPLOYMENT_TARGET[sdk=macosx*]" = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@executable_path/Frameworks/MoltenVK.framework",
+				);
+				MARKETING_VERSION = 1;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = YES;
+				TARGETED_DEVICE_FAMILY = "1,2,6";
+			};
+			name = Debug;
+		};
+		E9803A832D80892500ED6CB2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Cube.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = SGZE33W2XX;
+				GCC_PREFIX_HEADER = "$(SRCROOT)/iOS/Prefix.pch";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					MVK_SAMP_CUBE,
+				);
+				INFOPLIST_FILE = "Cube-iOS copy2-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				"IPHONEOS_DEPLOYMENT_TARGET[sdk=macosx*]" = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@executable_path/Frameworks/MoltenVK.framework",
+				);
+				MARKETING_VERSION = 1;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = YES;
+				TARGETED_DEVICE_FAMILY = "1,2,6";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -656,6 +822,15 @@
 			buildConfigurations = (
 				C01FCF4F08A954540054247B /* Debug */,
 				C01FCF5008A954540054247B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E9803A812D80892500ED6CB2 /* Build configuration list for PBXNativeTarget "Cube-iOS-AV" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E9803A822D80892500ED6CB2 /* Debug */,
+				E9803A832D80892500ED6CB2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
