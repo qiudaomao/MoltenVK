@@ -24,6 +24,7 @@
 #include <mutex>
 
 #import <Metal/Metal.h>
+#import <AVFoundation/AVSampleBufferDisplayLayer.h>
 
 class MVKWatermark;
 
@@ -44,6 +45,9 @@ public:
 
 	/** Returns the CAMetalLayer underlying the surface used by this swapchain. */
 	CAMetalLayer* getCAMetalLayer();
+    
+    /** Returns the AVSampleBufferDisplayLayer underlying the surface used by this swapchain. */
+    AVSampleBufferDisplayLayer* getAVSampleBufferDisplayLayer();
 
 	/** Returns whether the surface is headless. */
 	bool isHeadless();
@@ -115,6 +119,9 @@ protected:
 	void initCAMetalLayer(const VkSwapchainCreateInfoKHR* pCreateInfo,
 						  VkSwapchainPresentScalingCreateInfoKHR* pScalingInfo,
 						  uint32_t imgCnt);
+    void initAVSampleBufferDisplayLayer(const VkSwapchainCreateInfoKHR* pCreateInfo,
+                              VkSwapchainPresentScalingCreateInfoEXT* pScalingInfo,
+                              uint32_t imgCnt);
 	void initSurfaceImages(const VkSwapchainCreateInfoKHR* pCreateInfo, uint32_t imgCnt);
 	bool getIsSurfaceLost();
 	bool hasOptimalSurface();
