@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 70;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -32,8 +32,16 @@
 		A9F4D8802B88F7B1004AD576 /* MoltenVK.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A9F4D88A2B8A9C11004AD576 /* MoltenVK.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */; };
 		A9F4D88B2B8A9C11004AD576 /* MoltenVK.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		F1F8A3432E742A0900E1280A /* MoltenVK.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */; };
-		F1F8A3442E742A0900E1280A /* MoltenVK.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E9803A752D80892500ED6CB2 /* Icon.png in Resources */ = {isa = PBXBuildFile; fileRef = A9B67B761C3AAE9800373FFD /* Icon.png */; };
+		E9803A772D80892500ED6CB2 /* Default~ipad.png in Resources */ = {isa = PBXBuildFile; fileRef = A9B67B751C3AAE9800373FFD /* Default~ipad.png */; };
+		E9803A782D80892500ED6CB2 /* Default-568h@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = A9B67B741C3AAE9800373FFD /* Default-568h@2x.png */; };
+		E9803A7E2D80892500ED6CB2 /* MoltenVK.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */; };
+		E9803A802D80892500ED6CB2 /* MoltenVK.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E9803A902D80894000ED6CB2 /* AVDemoViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E9803A8C2D80894000ED6CB2 /* AVDemoViewController.m */; };
+		E9803A912D80894000ED6CB2 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = E9803A8A2D80894000ED6CB2 /* AppDelegate.m */; };
+		E9803A922D80894000ED6CB2 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = E9803A8D2D80894000ED6CB2 /* main.m */; };
+		E9803A942D80894000ED6CB2 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = E9803A872D80894000ED6CB2 /* Main.storyboard */; };
+		E9803A952D80894000ED6CB2 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = E9803A8E2D80894000ED6CB2 /* README.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -70,13 +78,13 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		F1F8A3452E742A0900E1280A /* Embed Frameworks */ = {
+		E9803A7F2D80892500ED6CB2 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				F1F8A3442E742A0900E1280A /* MoltenVK.xcframework in Embed Frameworks */,
+				E9803A802D80892500ED6CB2 /* MoltenVK.xcframework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -87,6 +95,9 @@
 		A904B5301C9A08C90008C013 /* cube.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = cube.c; sourceTree = "<group>"; };
 		A904B5311C9A08C90008C013 /* cube.frag */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.glsl; path = cube.frag; sourceTree = "<group>"; };
 		A904B5331C9A08C90008C013 /* cube.vert */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.glsl; path = cube.vert; sourceTree = "<group>"; };
+		A909989F2B4EE8C3002CEF67 /* libMoltenVK.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libMoltenVK.dylib; path = ../../MoltenVK/dylib/macOS/libMoltenVK.dylib; sourceTree = "<group>"; };
+		A90998A22B4EFB51002CEF67 /* libMoltenVK.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libMoltenVK.dylib; path = ../../MoltenVK/dylib/iOS/libMoltenVK.dylib; sourceTree = "<group>"; };
+		A90998A52B4EFBAA002CEF67 /* libMoltenVK.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libMoltenVK.dylib; path = ../../MoltenVK/dylib/tvOS/libMoltenVK.dylib; sourceTree = "<group>"; };
 		A93DBF4B24A2A4D500079F64 /* Cube.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cube.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A94D4CB424A2A95E009C9139 /* InfoTV.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = InfoTV.plist; sourceTree = "<group>"; };
 		A94D4CB624A2C9A3009C9139 /* MainTV.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = MainTV.storyboard; sourceTree = "<group>"; };
@@ -114,22 +125,18 @@
 		A9B67B8B1C3AAEA200373FFD /* macOS.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = macOS.xcassets; sourceTree = "<group>"; };
 		A9B734FE2576E04000455E2A /* Cube.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Cube.entitlements; sourceTree = "<group>"; };
 		A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = MoltenVK.xcframework; path = ../../Package/Latest/MoltenVK/dynamic/MoltenVK.xcframework; sourceTree = "<group>"; };
-		F1F8A32C2E74199300E1280A /* Cube.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cube.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A9F4D8862B8A9BD8004AD576 /* MoltenVK.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = MoltenVK.xcframework; path = ../../Package/Latest/MoltenVK/dynamic/MoltenVK.xcframework; sourceTree = "<group>"; };
+		E9803A842D80892500ED6CB2 /* Cube-iOS-AV.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Cube-iOS-AV.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E9803A852D80892600ED6CB2 /* Cube-iOS copy2-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "Cube-iOS copy2-Info.plist"; path = "/Users/zfu/proj/github/tvos.mpv.player/contrib/KSPlayer_LGPL/FFmpegKit/.Script/vulkan-v1.2.11-sample/Demos/Cube/Cube-iOS copy2-Info.plist"; sourceTree = "<absolute>"; };
+		E9803A862D80894000ED6CB2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		E9803A872D80894000ED6CB2 /* Main.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = Main.storyboard; sourceTree = "<group>"; };
+		E9803A892D80894000ED6CB2 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
+		E9803A8A2D80894000ED6CB2 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		E9803A8B2D80894000ED6CB2 /* AVDemoViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AVDemoViewController.h; sourceTree = "<group>"; };
+		E9803A8C2D80894000ED6CB2 /* AVDemoViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AVDemoViewController.m; sourceTree = "<group>"; };
+		E9803A8D2D80894000ED6CB2 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		E9803A8E2D80894000ED6CB2 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		F15E3A112E7463C000711757 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = F1F8A32B2E74199300E1280A /* Cube-VisionOS */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		F1F8A32D2E74199300E1280A /* VisionOS */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (F15E3A112E7463C000711757 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = VisionOS; sourceTree = "<group>"; };
-/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A9F4D8792B8590F2004AD576 /* Frameworks */ = {
@@ -156,11 +163,11 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		F1F8A3292E74199300E1280A /* Frameworks */ = {
+		E9803A7D2D80892500ED6CB2 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F1F8A3432E742A0900E1280A /* MoltenVK.xcframework in Frameworks */,
+				E9803A7E2D80892500ED6CB2 /* MoltenVK.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -173,7 +180,7 @@
 				A9B53B271C3AC0BE00ABC6F6 /* Cube.app */,
 				A9B53B431C3AC15200ABC6F6 /* Cube.app */,
 				A93DBF4B24A2A4D500079F64 /* Cube.app */,
-				F1F8A32C2E74199300E1280A /* Cube.app */,
+				E9803A842D80892500ED6CB2 /* Cube-iOS-AV.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -185,9 +192,10 @@
 				A904B52C1C9A08C80008C013 /* cube */,
 				A9B67B6A1C3AAE9800373FFD /* iOS */,
 				A9B67B811C3AAEA200373FFD /* macOS */,
-				F1F8A32D2E74199300E1280A /* VisionOS */,
+				E9803A8F2D80894000ED6CB2 /* AVDemo */,
 				19C28FACFE9D520D11CA2CBB /* Products */,
 				A9C2ABA82185085B00DDBC03 /* Frameworks */,
+				E9803A852D80892600ED6CB2 /* Cube-iOS copy2-Info.plist */,
 			);
 			name = CustomTemplate;
 			sourceTree = "<group>";
@@ -259,8 +267,35 @@
 			isa = PBXGroup;
 			children = (
 				A9F4D8702B858DDE004AD576 /* MoltenVK.xcframework */,
+				A9F4D8862B8A9BD8004AD576 /* MoltenVK.xcframework */,
+				A90998A52B4EFBAA002CEF67 /* libMoltenVK.dylib */,
+				A909989F2B4EE8C3002CEF67 /* libMoltenVK.dylib */,
+				A90998A22B4EFB51002CEF67 /* libMoltenVK.dylib */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		E9803A882D80894000ED6CB2 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E9803A862D80894000ED6CB2 /* Info.plist */,
+				E9803A872D80894000ED6CB2 /* Main.storyboard */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		E9803A8F2D80894000ED6CB2 /* AVDemo */ = {
+			isa = PBXGroup;
+			children = (
+				E9803A882D80894000ED6CB2 /* Resources */,
+				E9803A892D80894000ED6CB2 /* AppDelegate.h */,
+				E9803A8A2D80894000ED6CB2 /* AppDelegate.m */,
+				E9803A8B2D80894000ED6CB2 /* AVDemoViewController.h */,
+				E9803A8C2D80894000ED6CB2 /* AVDemoViewController.m */,
+				E9803A8D2D80894000ED6CB2 /* main.m */,
+				E9803A8E2D80894000ED6CB2 /* README.md */,
+			);
+			path = AVDemo;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -320,27 +355,22 @@
 			productReference = A9B53B431C3AC15200ABC6F6 /* Cube.app */;
 			productType = "com.apple.product-type.application";
 		};
-		F1F8A32B2E74199300E1280A /* Cube-VisionOS */ = {
+		E9803A732D80892500ED6CB2 /* Cube-iOS-AV */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = F1F8A33C2E74199400E1280A /* Build configuration list for PBXNativeTarget "Cube-VisionOS" */;
+			buildConfigurationList = E9803A812D80892500ED6CB2 /* Build configuration list for PBXNativeTarget "Cube-iOS-AV" */;
 			buildPhases = (
-				F1F8A3282E74199300E1280A /* Sources */,
-				F1F8A3292E74199300E1280A /* Frameworks */,
-				F1F8A32A2E74199300E1280A /* Resources */,
-				F1F8A3452E742A0900E1280A /* Embed Frameworks */,
+				E9803A742D80892500ED6CB2 /* Resources */,
+				E9803A792D80892500ED6CB2 /* Sources */,
+				E9803A7D2D80892500ED6CB2 /* Frameworks */,
+				E9803A7F2D80892500ED6CB2 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				F1F8A32D2E74199300E1280A /* VisionOS */,
-			);
-			name = "Cube-VisionOS";
-			packageProductDependencies = (
-			);
-			productName = VisionOs;
-			productReference = F1F8A32C2E74199300E1280A /* Cube.app */;
+			name = "Cube-iOS-AV";
+			productName = foo;
+			productReference = E9803A842D80892500ED6CB2 /* Cube-iOS-AV.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -377,7 +407,7 @@
 				A9B53B291C3AC15200ABC6F6 /* Cube-iOS */,
 				A93DBF3A24A2A4D500079F64 /* Cube-tvOS */,
 				A9B53B0F1C3AC0BE00ABC6F6 /* Cube-macOS */,
-				F1F8A32B2E74199300E1280A /* Cube-VisionOS */,
+				E9803A732D80892500ED6CB2 /* Cube-iOS-AV */,
 			);
 		};
 /* End PBXProject section */
@@ -414,10 +444,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		F1F8A32A2E74199300E1280A /* Resources */ = {
+		E9803A742D80892500ED6CB2 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9803A752D80892500ED6CB2 /* Icon.png in Resources */,
+				E9803A772D80892500ED6CB2 /* Default~ipad.png in Resources */,
+				E9803A782D80892500ED6CB2 /* Default-568h@2x.png in Resources */,
+				E9803A942D80894000ED6CB2 /* Main.storyboard in Resources */,
+				E9803A952D80894000ED6CB2 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -454,10 +489,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		F1F8A3282E74199300E1280A /* Sources */ = {
+		E9803A792D80892500ED6CB2 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E9803A902D80894000ED6CB2 /* AVDemoViewController.m in Sources */,
+				E9803A912D80894000ED6CB2 /* AppDelegate.m in Sources */,
+				E9803A922D80894000ED6CB2 /* main.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -483,7 +521,7 @@
 				MARKETING_VERSION = 1;
 				PRODUCT_NAME = Cube;
 				SDKROOT = appletvos;
-				TVOS_DEPLOYMENT_TARGET = 14.5;
+				TVOS_DEPLOYMENT_TARGET = 13.0;
 			};
 			name = Debug;
 		};
@@ -506,7 +544,7 @@
 				MARKETING_VERSION = 1;
 				PRODUCT_NAME = Cube;
 				SDKROOT = appletvos;
-				TVOS_DEPLOYMENT_TARGET = 14.5;
+				TVOS_DEPLOYMENT_TARGET = 13.0;
 			};
 			name = Release;
 		};
@@ -530,7 +568,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../Frameworks/MoltenVK.framework",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				PRODUCT_NAME = Cube;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
@@ -557,7 +595,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../Frameworks/MoltenVK.framework",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				PRODUCT_NAME = Cube;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
@@ -572,14 +610,14 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = SGZE33W2XX;
 				GCC_PREFIX_HEADER = "$(SRCROOT)/iOS/Prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					MVK_SAMP_CUBE,
 				);
 				INFOPLIST_FILE = "$(SRCROOT)/iOS/Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				"IPHONEOS_DEPLOYMENT_TARGET[sdk=macosx*]" = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"@executable_path/Frameworks",
@@ -602,14 +640,14 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = SGZE33W2XX;
 				GCC_PREFIX_HEADER = "$(SRCROOT)/iOS/Prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					MVK_SAMP_CUBE,
 				);
 				INFOPLIST_FILE = "$(SRCROOT)/iOS/Info.plist";
-				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				"IPHONEOS_DEPLOYMENT_TARGET[sdk=macosx*]" = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"@executable_path/Frameworks",
@@ -689,169 +727,63 @@
 			};
 			name = Release;
 		};
-		F1F8A3392E74199400E1280A /* Debug */ = {
+		E9803A822D80892500ED6CB2 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_ENTITLEMENTS = Cube.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_PREVIEWS = YES;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_NO_COMMON_BLOCKS = YES;
+				DEVELOPMENT_TEAM = SGZE33W2XX;
+				GCC_PREFIX_HEADER = "$(SRCROOT)/iOS/Prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
 					"$(inherited)",
 					MVK_SAMP_CUBE,
 				);
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "$(SRCROOT)/VisionOS/Info.plist";
+				INFOPLIST_FILE = "Cube-iOS copy2-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				"IPHONEOS_DEPLOYMENT_TARGET[sdk=macosx*]" = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
 					"@executable_path/Frameworks",
+					"@executable_path/Frameworks/MoltenVK.framework",
 				);
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.moltenvk.${PRODUCT_NAME:identifier}";
-				PRODUCT_NAME = Cube;
-				SDKROOT = xros;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "xros xrsimulator";
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "VisionOS/Cube-VisionOS-Bridging-Header.h";
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 7;
-				XROS_DEPLOYMENT_TARGET = 2.0;
+				MARKETING_VERSION = 1;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = YES;
+				TARGETED_DEVICE_FAMILY = "1,2,6";
 			};
 			name = Debug;
 		};
-		F1F8A33A2E74199400E1280A /* Release */ = {
+		E9803A832D80892500ED6CB2 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_ENTITLEMENTS = Cube.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
-				ENABLE_PREVIEWS = YES;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_NO_COMMON_BLOCKS = YES;
+				DEVELOPMENT_TEAM = SGZE33W2XX;
+				GCC_PREFIX_HEADER = "$(SRCROOT)/iOS/Prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					VK_NO_PROTOTYPES,
+					"$(inherited)",
 					MVK_SAMP_CUBE,
 				);
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "$(SRCROOT)/VisionOS/Info.plist";
+				INFOPLIST_FILE = "Cube-iOS copy2-Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
+				"IPHONEOS_DEPLOYMENT_TARGET[sdk=macosx*]" = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
 					"@executable_path/Frameworks",
+					"@executable_path/Frameworks/MoltenVK.framework",
 				);
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.moltenvk.${PRODUCT_NAME:identifier}";
-				PRODUCT_NAME = Cube;
-				SDKROOT = xros;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "xros xrsimulator";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OBJC_BRIDGING_HEADER = "VisionOS/Cube-VisionOS-Bridging-Header.h";
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 7;
-				VALIDATE_PRODUCT = YES;
-				XROS_DEPLOYMENT_TARGET = 2.0;
+				MARKETING_VERSION = 1;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = iphoneos;
+				SUPPORTS_MACCATALYST = YES;
+				TARGETED_DEVICE_FAMILY = "1,2,6";
 			};
 			name = Release;
 		};
@@ -894,11 +826,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		F1F8A33C2E74199400E1280A /* Build configuration list for PBXNativeTarget "Cube-VisionOS" */ = {
+		E9803A812D80892500ED6CB2 /* Build configuration list for PBXNativeTarget "Cube-iOS-AV" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				F1F8A3392E74199400E1280A /* Debug */,
-				F1F8A33A2E74199400E1280A /* Release */,
+				E9803A822D80892500ED6CB2 /* Debug */,
+				E9803A832D80892500ED6CB2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
