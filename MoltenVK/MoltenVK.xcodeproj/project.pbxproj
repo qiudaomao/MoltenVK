@@ -550,6 +550,29 @@
 		DCFD7F5A2A45BC6E007BBBF7 /* CAMetalLayer+MoltenVK.mm in Sources */ = {isa = PBXBuildFile; fileRef = A9E53DD62100B197002781DD /* CAMetalLayer+MoltenVK.mm */; };
 		DCFD7F5B2A45BC6E007BBBF7 /* MVKCmdDispatch.mm in Sources */ = {isa = PBXBuildFile; fileRef = A9096E5D1F81E16300DFBEA6 /* MVKCmdDispatch.mm */; };
 		DCFD7F5C2A45BC6E007BBBF7 /* MVKCmdDebug.mm in Sources */ = {isa = PBXBuildFile; fileRef = A99C90ED229455B300A061DA /* MVKCmdDebug.mm */; };
+		E97461932D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm in Sources */ = {isa = PBXBuildFile; fileRef = E97461922D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm */; };
+		E97461942D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h in Headers */ = {isa = PBXBuildFile; fileRef = E97461912D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h */; };
+		E97461952D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h in Headers */ = {isa = PBXBuildFile; fileRef = E97461912D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h */; };
+		E97461962D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm in Sources */ = {isa = PBXBuildFile; fileRef = E97461922D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm */; };
+		E97461972D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h in Headers */ = {isa = PBXBuildFile; fileRef = E97461912D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h */; };
+		E97461982D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm in Sources */ = {isa = PBXBuildFile; fileRef = E97461922D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm */; };
+		E97461992D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h in Headers */ = {isa = PBXBuildFile; fileRef = E97461912D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h */; };
+		E974619A2D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm in Sources */ = {isa = PBXBuildFile; fileRef = E97461922D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm */; };
+		E97461B42D7F2B6D0083975F /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461B32D7F2B6D0083975F /* CoreMedia.framework */; };
+		E97461B52D7F2B6D0083975F /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461B32D7F2B6D0083975F /* CoreMedia.framework */; };
+		E97461B62D7F2B6D0083975F /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461B32D7F2B6D0083975F /* CoreMedia.framework */; };
+		E97461B72D7F2B6D0083975F /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461B32D7F2B6D0083975F /* CoreMedia.framework */; };
+		E97461B82D7F2B6D0083975F /* CoreMedia.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461B32D7F2B6D0083975F /* CoreMedia.framework */; };
+		E97461BA2D7F2B7C0083975F /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461B92D7F2B7C0083975F /* CoreVideo.framework */; };
+		E97461BB2D7F2B7C0083975F /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461B92D7F2B7C0083975F /* CoreVideo.framework */; };
+		E97461BC2D7F2B7C0083975F /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461B92D7F2B7C0083975F /* CoreVideo.framework */; };
+		E97461BD2D7F2B7C0083975F /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461B92D7F2B7C0083975F /* CoreVideo.framework */; };
+		E97461BE2D7F2B7C0083975F /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461B92D7F2B7C0083975F /* CoreVideo.framework */; };
+		E97461C02D7F2F650083975F /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461BF2D7F2F650083975F /* AVFoundation.framework */; };
+		E97461C12D7F2F650083975F /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461BF2D7F2F650083975F /* AVFoundation.framework */; };
+		E97461C22D7F2F650083975F /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461BF2D7F2F650083975F /* AVFoundation.framework */; };
+		E97461C32D7F2F650083975F /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461BF2D7F2F650083975F /* AVFoundation.framework */; };
+		E97461C42D7F2F650083975F /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E97461BF2D7F2F650083975F /* AVFoundation.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -805,6 +828,11 @@
 		A9F4D9ED2B8EC112004AD576 /* MoltenVK.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = MoltenVK.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		A9F4D9FB2B8ECACF004AD576 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		DCFD7F622A45BC6E007BBBF7 /* libMoltenVK.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libMoltenVK.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		E97461912D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AVSampleBufferDisplayLayer+MoltenVK.h"; sourceTree = "<group>"; };
+		E97461922D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = "AVSampleBufferDisplayLayer+MoltenVK.mm"; sourceTree = "<group>"; };
+		E97461B32D7F2B6D0083975F /* CoreMedia.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMedia.framework; path = ../MacOSX.sdk/System/Library/Frameworks/CoreMedia.framework; sourceTree = SDKROOT; };
+		E97461B92D7F2B7C0083975F /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = ../MacOSX.sdk/System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
+		E97461BF2D7F2F650083975F /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks/AVFoundation.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -816,10 +844,13 @@
 				A979A96C2B9A277000F69E67 /* libc++.tbd in Frameworks */,
 				A979A9682B9A277000F69E67 /* CoreGraphics.framework in Frameworks */,
 				A979A9562B9A22CB00F69E67 /* libMoltenVK.a in Frameworks */,
+				E97461B82D7F2B6D0083975F /* CoreMedia.framework in Frameworks */,
 				A979A9672B9A277000F69E67 /* AppKit.framework in Frameworks */,
 				A979A96A2B9A277000F69E67 /* IOKit.framework in Frameworks */,
 				A979A96D2B9A277000F69E67 /* Metal.framework in Frameworks */,
+				E97461C02D7F2F650083975F /* AVFoundation.framework in Frameworks */,
 				A979A9692B9A277000F69E67 /* Foundation.framework in Frameworks */,
+				E97461BE2D7F2B7C0083975F /* CoreVideo.framework in Frameworks */,
 				A979A96E2B9A277000F69E67 /* QuartzCore.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -832,10 +863,13 @@
 				A9F4D9922B8E7D71004AD576 /* UIKit.framework in Frameworks */,
 				A9F4D98C2B8E7D3A004AD576 /* Foundation.framework in Frameworks */,
 				A9F4D98A2B8E7D18004AD576 /* CoreGraphics.framework in Frameworks */,
+				E97461B72D7F2B6D0083975F /* CoreMedia.framework in Frameworks */,
 				A9F4D9862B8E7CDB004AD576 /* Metal.framework in Frameworks */,
 				A9F4D9752B8E745A004AD576 /* libMoltenVK.a in Frameworks */,
 				A9F4D9942B8E7E9C004AD576 /* libc++.tbd in Frameworks */,
+				E97461C22D7F2F650083975F /* AVFoundation.framework in Frameworks */,
 				A9F4D9902B8E7D66004AD576 /* IOKit.framework in Frameworks */,
+				E97461BD2D7F2B7C0083975F /* CoreVideo.framework in Frameworks */,
 				A9F4D9882B8E7D10004AD576 /* QuartzCore.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -846,12 +880,15 @@
 			files = (
 				A9F4D9A42B8EB2FC004AD576 /* IOSurface.framework in Frameworks */,
 				A9F4D9A52B8EB2FC004AD576 /* UIKit.framework in Frameworks */,
+				E97461C32D7F2F650083975F /* AVFoundation.framework in Frameworks */,
 				A9F4D9A62B8EB2FC004AD576 /* Foundation.framework in Frameworks */,
+				E97461B42D7F2B6D0083975F /* CoreMedia.framework in Frameworks */,
 				A9F4D9A72B8EB2FC004AD576 /* CoreGraphics.framework in Frameworks */,
 				A9F4D9A82B8EB2FC004AD576 /* Metal.framework in Frameworks */,
 				A9F4D9A92B8EB2FC004AD576 /* libMoltenVK.a in Frameworks */,
 				A9F4D9AA2B8EB2FC004AD576 /* libc++.tbd in Frameworks */,
 				A9F4D9AC2B8EB2FC004AD576 /* QuartzCore.framework in Frameworks */,
+				E97461BC2D7F2B7C0083975F /* CoreVideo.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -863,10 +900,13 @@
 				A9F4D9C12B8EB6DC004AD576 /* UIKit.framework in Frameworks */,
 				A9F4D9C22B8EB6DC004AD576 /* Foundation.framework in Frameworks */,
 				A9F4D9C32B8EB6DC004AD576 /* CoreGraphics.framework in Frameworks */,
+				E97461B52D7F2B6D0083975F /* CoreMedia.framework in Frameworks */,
 				A9F4D9C42B8EB6DC004AD576 /* Metal.framework in Frameworks */,
 				A9F4D9C52B8EB6DC004AD576 /* libMoltenVK.a in Frameworks */,
 				A9F4D9C62B8EB6DC004AD576 /* libc++.tbd in Frameworks */,
+				E97461C12D7F2F650083975F /* AVFoundation.framework in Frameworks */,
 				A9F4D9C72B8EB6DC004AD576 /* IOKit.framework in Frameworks */,
+				E97461BA2D7F2B7C0083975F /* CoreVideo.framework in Frameworks */,
 				A9F4D9C82B8EB6DC004AD576 /* QuartzCore.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -879,10 +919,13 @@
 				A9F4D9E12B8EC112004AD576 /* Foundation.framework in Frameworks */,
 				A9F4D9E22B8EC112004AD576 /* CoreGraphics.framework in Frameworks */,
 				A9F4D9E32B8EC112004AD576 /* Metal.framework in Frameworks */,
+				E97461B62D7F2B6D0083975F /* CoreMedia.framework in Frameworks */,
 				A9F4D9E42B8EC112004AD576 /* libMoltenVK.a in Frameworks */,
 				A9F4D9E52B8EC112004AD576 /* libc++.tbd in Frameworks */,
 				A9F4D9FD2B8ECB67004AD576 /* AppKit.framework in Frameworks */,
+				E97461C42D7F2F650083975F /* AVFoundation.framework in Frameworks */,
 				A9F4D9E62B8EC112004AD576 /* IOKit.framework in Frameworks */,
+				E97461BB2D7F2B7C0083975F /* CoreVideo.framework in Frameworks */,
 				A9F4D9E72B8EC112004AD576 /* QuartzCore.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1077,6 +1120,8 @@
 			children = (
 				A9E53DD12100B197002781DD /* CAMetalLayer+MoltenVK.h */,
 				A9E53DD62100B197002781DD /* CAMetalLayer+MoltenVK.mm */,
+				E97461912D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h */,
+				E97461922D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm */,
 				453638312508A4C7000EFFD3 /* MTLRenderPassDepthAttachmentDescriptor+MoltenVK.h */,
 				4536382F2508A4C6000EFFD3 /* MTLRenderPassDepthAttachmentDescriptor+MoltenVK.m */,
 				A9E53DEE2100B302002781DD /* MTLRenderPassDescriptor+MoltenVK.h */,
@@ -1123,6 +1168,9 @@
 				A9F4D9892B8E7D18004AD576 /* CoreGraphics.framework */,
 				A9F4D9872B8E7D10004AD576 /* QuartzCore.framework */,
 				A9F4D9852B8E7CDB004AD576 /* Metal.framework */,
+				E97461B32D7F2B6D0083975F /* CoreMedia.framework */,
+				E97461B92D7F2B7C0083975F /* CoreVideo.framework */,
+				E97461BF2D7F2F650083975F /* AVFoundation.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -1183,6 +1231,7 @@
 				2FEA0A5024902F9F00EEF3AD /* MVKCodec.h in Headers */,
 				2FEA0A5124902F9F00EEF3AD /* MVKRenderPass.h in Headers */,
 				2FEA0A5224902F9F00EEF3AD /* MVKLogging.h in Headers */,
+				E97461942D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h in Headers */,
 				2FEA0A5324902F9F00EEF3AD /* MVKQueue.h in Headers */,
 				2FEA0A5424902F9F00EEF3AD /* MVKFramebuffer.h in Headers */,
 				2FEA0A5624902F9F00EEF3AD /* MVKWatermarkShaderSource.h in Headers */,
@@ -1278,6 +1327,7 @@
 				A94FB7E41C7DFB4800632CA3 /* MVKDevice.h in Headers */,
 				A9F3D9DE24732A4D00745190 /* MVKSmallVector.h in Headers */,
 				A94FB7D41C7DFB4800632CA3 /* MVKCommandPool.h in Headers */,
+				E97461972D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h in Headers */,
 				A94FB80C1C7DFB4800632CA3 /* MVKShaderModule.h in Headers */,
 				A9AB952B2B3EDFCC00C4E967 /* MVKInflectionMap.h in Headers */,
 				A99C91042295FAC600A061DA /* MVKVulkanAPIObject.h in Headers */,
@@ -1358,6 +1408,7 @@
 				A9F3D9DF24732A4D00745190 /* MVKSmallVector.h in Headers */,
 				A94FB7D51C7DFB4800632CA3 /* MVKCommandPool.h in Headers */,
 				A94FB80D1C7DFB4800632CA3 /* MVKShaderModule.h in Headers */,
+				E97461992D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h in Headers */,
 				A99C91052295FAC600A061DA /* MVKVulkanAPIObject.h in Headers */,
 				A9AB952D2B3EDFCC00C4E967 /* MVKInflectionMap.h in Headers */,
 				A94FB7C11C7DFB4800632CA3 /* MVKCmdQueries.h in Headers */,
@@ -1486,6 +1537,7 @@
 				DCFD7F122A45BC6E007BBBF7 /* MVKImage.h in Headers */,
 				DCFD7F132A45BC6E007BBBF7 /* MVKBlockObserver.h in Headers */,
 				DCFD7F142A45BC6E007BBBF7 /* MVKCmdTransfer.h in Headers */,
+				E97461952D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.h in Headers */,
 				DCFD7F152A45BC6E007BBBF7 /* MVKDescriptor.h in Headers */,
 				DCFD7F162A45BC6E007BBBF7 /* MVKCmdDraw.h in Headers */,
 				A9AB952E2B3EDFCC00C4E967 /* MVKInflectionMap.h in Headers */,
@@ -2149,6 +2201,7 @@
 				2FEA0A8B24902F9F00EEF3AD /* MVKWatermark.mm in Sources */,
 				2FEA0A8C24902F9F00EEF3AD /* MVKBaseObject.mm in Sources */,
 				2FEA0A8D24902F9F00EEF3AD /* NSString+MoltenVK.mm in Sources */,
+				E97461932D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm in Sources */,
 				2FEA0A8E24902F9F00EEF3AD /* vulkan.mm in Sources */,
 				2FEA0A8F24902F9F00EEF3AD /* MVKSurface.mm in Sources */,
 				2FEA0A9024902F9F00EEF3AD /* MVKQueryPool.mm in Sources */,
@@ -2255,6 +2308,7 @@
 				453638382508A4C7000EFFD3 /* MTLRenderPassStencilAttachmentDescriptor+MoltenVK.m in Sources */,
 				A9C96DD21DDC20C20053187F /* MVKMTLBufferAllocation.mm in Sources */,
 				A9E53DE92100B197002781DD /* CAMetalLayer+MoltenVK.mm in Sources */,
+				E97461982D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm in Sources */,
 				A9096E5E1F81E16300DFBEA6 /* MVKCmdDispatch.mm in Sources */,
 				A99C90F0229455B300A061DA /* MVKCmdDebug.mm in Sources */,
 				45E3A40D2166B923005E3E38 /* MTLRenderPipelineColorAttachmentDescriptor+MoltenVK.m in Sources */,
@@ -2316,6 +2370,7 @@
 				4536383A2508A4C7000EFFD3 /* MTLRenderPassStencilAttachmentDescriptor+MoltenVK.m in Sources */,
 				A9C96DD31DDC20C20053187F /* MVKMTLBufferAllocation.mm in Sources */,
 				A9E53DEA2100B197002781DD /* CAMetalLayer+MoltenVK.mm in Sources */,
+				E974619A2D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm in Sources */,
 				A9096E5F1F81E16300DFBEA6 /* MVKCmdDispatch.mm in Sources */,
 				A99C90F1229455B300A061DA /* MVKCmdDebug.mm in Sources */,
 				45E3A40E2166B923005E3E38 /* MTLRenderPipelineColorAttachmentDescriptor+MoltenVK.m in Sources */,
@@ -2385,6 +2440,7 @@
 				DCFD7F442A45BC6E007BBBF7 /* MVKDevice.mm in Sources */,
 				DCFD7F452A45BC6E007BBBF7 /* MTLRenderPassDescriptor+MoltenVK.m in Sources */,
 				DCFD7F462A45BC6E007BBBF7 /* MVKDescriptor.mm in Sources */,
+				E97461962D7F1A690083975F /* AVSampleBufferDisplayLayer+MoltenVK.mm in Sources */,
 				DCFD7F472A45BC6E007BBBF7 /* MVKPipeline.mm in Sources */,
 				DCFD7F482A45BC6E007BBBF7 /* MVKQueue.mm in Sources */,
 				DCFD7F492A45BC6E007BBBF7 /* MTLSamplerDescriptor+MoltenVK.m in Sources */,

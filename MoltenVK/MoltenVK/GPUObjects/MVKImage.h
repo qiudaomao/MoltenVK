@@ -27,12 +27,17 @@
 #include <mutex>
 
 #import <IOSurface/IOSurfaceRef.h>
+#import <AVFoundation/AVSampleBufferDisplayLayer.h>
 
 class MVKImage;
 class MVKImageView;
 class MVKSwapchain;
 class MVKQueue;
 class MVKCommandEncoder;
+
+// Forward declarations of needed types
+@class AVSampleBuffer;
+@class CVPixelBuffer;
 
 
 #pragma mark -
@@ -424,6 +429,7 @@ public:
 					  uint32_t swapchainIndex);
 
 	void destroy() override;
+    MVKSwapchain* _swapchain;
 
 protected:
 	friend class MVKPeerSwapchainImage;
@@ -431,7 +437,6 @@ protected:
 	void detachSwapchain();
 
 	std::mutex _detachmentLock;
-	MVKSwapchain* _swapchain;
 	uint32_t _swapchainIndex;
 };
 
@@ -439,7 +444,7 @@ protected:
 #pragma mark -
 #pragma mark MVKPresentableSwapchainImage
 
-/** Indicates the relative availability of each image in the swapchain. */
+/** Tracks the availability of a swapchain image. */
 typedef struct MVKSwapchainImageAvailability {
 	uint64_t acquisitionID;			/**< When this image was last made available, relative to the other images in the swapchain. Smaller value is earlier. */
 	bool isAvailable;				/**< Indicates whether this image is currently available. */
@@ -447,7 +452,7 @@ typedef struct MVKSwapchainImageAvailability {
 	bool operator< (const MVKSwapchainImageAvailability& rhs) const;
 } MVKSwapchainImageAvailability;
 
-/** Presentation info. */
+/** Holds info for presenting an image to a swapchain. */
 typedef struct  {
 	MVKPresentableSwapchainImage* presentableImage;
 	MVKQueue* queue;				// The queue on which the vkQueuePresentKHR() command was executed.
@@ -457,38 +462,50 @@ typedef struct  {
 	VkPresentModeKHR presentMode;	// VK_EXT_swapchain_maintenance1 present mode specialization
 } MVKImagePresentInfo;
 
-/** Tracks a semaphore and fence for later signaling. */
+/** Holds info to signal semaphores and fences. */
 struct MVKSwapchainSignaler {
 	MVKFence* fence;
 	MVKSemaphore* semaphore;
 	uint64_t semaphoreSignalToken;
 };
 
-
-/** Represents a Vulkan swapchain image that can be submitted to the presentation engine. */
+/** Represents a Vulkan image that can be presented to a surface. */
 class MVKPresentableSwapchainImage : public MVKSwapchainImage {
 
 public:
 
-#pragma mark Metal
+	/** Returns the Vulkan API opaque object controlling this object. */
+//    MVKSwapchain* getVulkanAPIObject() override { return _swapchain; }
+    MVKPresentableSwapchainImage(MVKDevice* device,
+                                 const VkImageCreateInfo* pCreateInfo,
+                                 MVKSwapchain* swapchain,
+                                 uint32_t swapchainIndex);
 
+	/** Returns the Metal texture from the CAMetalDrawable, or nil if an error occurred. */
 	id<MTLTexture> getMTLTexture(uint8_t planeIndex) override;
 
-	/** Presents the contained drawable to the OS. */
+	/** Presents the drawable held by this image. */
 	VkResult presentCAMetalDrawable(id<MTLCommandBuffer> mtlCmdBuff, MVKImagePresentInfo presentInfo);
 
-	/** Called when the presentation begins. */
+    /** Presents the texture to AVSampleBufferDisplayLayer held by this image. */
+    VkResult presentAVSampleBuffer(id<MTLCommandBuffer> mtlCmdBuff, MVKImagePresentInfo presentInfo);
+
+	/** Mark the start of the presentation. */
 	void beginPresentation(const MVKImagePresentInfo& presentInfo);
 
-	/** Called via callback when the presentation completes. */
+	/** Mark the end of the presentation. */
 	void endPresentation(const MVKImagePresentInfo& presentInfo,
 						 const MVKSwapchainSignaler& signaler,
 						 uint64_t actualPresentTime = 0);
+    
+	/** Returns whether the image is marked as available for acquisition by the app. */
+	bool isAvailable();
 
-#pragma mark Construction
+	/** Releases the underlying Metal drawable and makes the image available for acquisition again. */
+	void makeAvailable();
 
-	MVKPresentableSwapchainImage(MVKDevice* device, const VkImageCreateInfo* pCreateInfo,
-								 MVKSwapchain* swapchain, uint32_t swapchainIndex);
+	/** Marks the image as acquired and waits for the image to become available for acquisition. */
+	VkResult acquireAndSignalWhenAvailable(MVKSemaphore* semaphore, MVKFence* fence);
 
 	void destroy() override;
 
@@ -498,15 +515,18 @@ protected:
 	friend MVKSwapchain;
 
 	id<CAMetalDrawable> getCAMetalDrawable();
+    CVPixelBufferRef getPixelBufferFromMTLTexture(id<MTLTexture> mtlTexture);
+    AVSampleBuffer* getSampleBufferFromPixelBuffer(CVPixelBufferRef pixelBuffer);
 	void addPresentedHandler(id<CAMetalDrawable> mtlDrawable, MVKImagePresentInfo presentInfo, MVKSwapchainSignaler signaler);
 	void releaseMetalDrawable();
 	MVKSwapchainImageAvailability getAvailability();
-	void makeAvailable();
-	VkResult acquireAndSignalWhenAvailable(MVKSemaphore* semaphore, MVKFence* fence);
+//	void makeAvailable();
+//	VkResult acquireAndSignalWhenAvailable(MVKSemaphore* semaphore, MVKFence* fence);
 	MVKSwapchainSignaler getPresentationSignaler();
 
 	id<CAMetalDrawable> _mtlDrawable = nil;
 	id<MTLTexture> _mtlTextureHeadless = nil;
+	id<MTLTexture> _mtlTexture = nil;  // For AVSampleBufferDisplayLayer rendering
 	MVKSwapchainImageAvailability _availability;
 	MVKSmallVector<MVKSwapchainSignaler, 1> _availabilitySignalers;
 	MVKSwapchainSignaler _preSignaler = {};
