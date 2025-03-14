@@ -376,6 +376,7 @@ void MVKImagePlane::pullFromDeviceOnCompletion(MVKCommandEncoder* cmdEncoder,
 MVKImagePlane::MVKImagePlane(MVKImage* image, uint8_t planeIndex) {
     _image = image;
     _planeIndex = planeIndex;
+    [_mtlTexture release];
     _mtlTexture = nil;
 }
 
@@ -1567,11 +1568,12 @@ id<MTLTexture> MVKPresentableSwapchainImage::getMTLTexture(uint8_t planeIndex) {
                 texDesc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
                 texDesc.storageMode = MTLStorageModePrivate;
                 
-                MVKLogInfo("Creating texture for AVSampleBufferDisplayLayer with size (%d, %d) and format %lu", 
-                          extent.width, extent.height, (unsigned long)pixFormat);
+                // newTextureWithDescriptor already returns a retained object, so don't retain again
+                _mtlTexture = [getMTLDevice() newTextureWithDescriptor:texDesc]; // Fix: removed retain call
                 
-                _mtlTexture = [[getMTLDevice() newTextureWithDescriptor:texDesc] retain]; // retained
-                
+//                MVKLogInfo("Creating texture for AVSampleBufferDisplayLayer with size (%d, %d) and format %lu, _mtlTexture %p",
+//                          extent.width, extent.height, (unsigned long)pixFormat, _mtlTexture);
+
                 if (!_mtlTexture) {
                     MVKLogError("Failed to create texture for AVSampleBufferDisplayLayer");
                     setConfigurationResult(VK_ERROR_OUT_OF_DEVICE_MEMORY);
@@ -1715,7 +1717,15 @@ void MVKPresentableSwapchainImage::releaseMetalDrawable() {
 	_mtlDrawable = nil;
     
     // Also release the texture for AVSampleBufferDisplayLayer if it exists
-    [_mtlTexture release];
+//    MVKLogInfo("release _mtlTexture %p count %lu", _mtlTexture, _mtlTexture.retainCount);
+    // The texture is double-retained when created (once by newTextureWithDescriptor and once by explicit retain)
+    // So we need to release it twice to properly clean up
+    if (_mtlTexture && _mtlTexture.retainCount >= 2) {
+        [_mtlTexture release];
+        [_mtlTexture release];
+    } else if (_mtlTexture) {
+        [_mtlTexture release];
+    }
     _mtlTexture = nil;
 }
 
@@ -1769,6 +1779,14 @@ void MVKPresentableSwapchainImage::destroy() {
 	releaseMetalDrawable();
 	[_mtlTextureHeadless release];
 	_mtlTextureHeadless = nil;
+	
+	// Add an additional safety check to make sure _mtlTexture is nil
+	if (_mtlTexture) {
+		MVKLogError("_mtlTexture still exists during destroy, releasing it to prevent leaks");
+		[_mtlTexture release];
+		_mtlTexture = nil;
+	}
+	
 	MVKSwapchainImage::destroy();
 }
 
@@ -1883,6 +1901,7 @@ MVKImageViewPlane::MVKImageViewPlane(MVKImageView* imageView,
     _imageView = imageView;
     _planeIndex = planeIndex;
     _mtlPixFmt = mtlPixFmt;
+    [_mtlTexture release];
     _mtlTexture = nil;
 
 	getVulkanAPIObject()->setConfigurationResult(initSwizzledMTLPixelFormat(pCreateInfo));
