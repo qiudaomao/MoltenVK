@@ -2816,6 +2816,10 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
     // Mark the beginning of presentation
     beginPresentation(presentInfo);
     
+    // Use static frame counter to ensure unique timestamps for each frame
+    static uint64_t frameCounter = 0;
+    __block uint64_t currentFrame = frameCounter++;
+    
     // On scheduled handler, convert texture to pixel buffer and enqueue to AVSampleBufferDisplayLayer
     [mtlCmdBuff addScheduledHandler:^(id<MTLCommandBuffer> mcb) {
         // Convert texture to pixel buffer
@@ -2830,10 +2834,11 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
         CMVideoFormatDescriptionRef formatDescription = nil;
         CMVideoFormatDescriptionCreateForImageBuffer(kCFAllocatorDefault, pixelBuffer, &formatDescription);
         
+        // Use increasing timestamps for each frame (30fps)
         CMSampleTimingInfo timing = {
             .duration = CMTimeMake(1, 30), // 30 fps
-            .presentationTimeStamp = CMTimeMake(0, 30),
-            .decodeTimeStamp = CMTimeMake(0, 30)
+            .presentationTimeStamp = CMTimeMake(currentFrame, 30),
+            .decodeTimeStamp = CMTimeMake(currentFrame, 30)
         };
         
         // Use desired presentation time if provided
@@ -2854,6 +2859,11 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
         CFRelease(formatDescription);
         
         if (status == noErr && sampleBuffer) {
+            // Flush any old frames before enqueueing new one to prevent backlog
+            if (avLayer.status == AVQueuedSampleBufferRenderingStatusFailed) {
+                [avLayer flush];
+            }
+            
             // Enqueue the sample buffer
             [avLayer enqueueSampleBuffer:sampleBuffer];
             
