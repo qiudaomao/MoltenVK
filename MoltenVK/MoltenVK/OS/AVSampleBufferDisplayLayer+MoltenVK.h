@@ -27,7 +27,7 @@
 #endif
 
 #if MVK_MACOS && !MVK_MACCAT
-#	include <AppKit/NSScreen.h>
+#	include <AppKit/AppKit.h>
 #endif
 
 /** Extensions to AVSampleBufferDisplayLayer to support MoltenVK. */
