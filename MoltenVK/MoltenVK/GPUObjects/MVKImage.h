@@ -503,6 +503,8 @@ public:
 	void destroy() override;
 
 	~MVKPresentableSwapchainImage() override;
+	static void initialize();
+	void prepareForResize();
 
 protected:
 	friend MVKSwapchain;
@@ -516,6 +518,10 @@ protected:
 //	void makeAvailable();
 //	VkResult acquireAndSignalWhenAvailable(MVKSemaphore* semaphore, MVKFence* fence);
 	MVKSwapchainSignaler getPresentationSignaler();
+
+	CVPixelBufferRef createConvertedPixelBufferForRGB10A2(id<MTLTexture> mtlTexture);
+	CVPixelBufferRef createConvertedPixelBufferForYUV420_10bit(id<MTLTexture> mtlTexture);
+	void releaseShaderResources();
 
 	id<CAMetalDrawable> _mtlDrawable = nil;
 	id<MTLTexture> _mtlTextureHeadless = nil;
