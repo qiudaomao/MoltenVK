@@ -35,7 +35,11 @@
 #import "MTLTextureDescriptor+MoltenVK.h"
 #import "MTLSamplerDescriptor+MoltenVK.h"
 #import <CoreVideo/CoreVideo.h>
+#import <CoreMedia/CoreMedia.h>
 #import <AVFoundation/AVFoundation.h>
+
+// For HDR processing
+CFStringRef kCMSampleAttachmentKey_HDRMetadataAddedByMoltenVK = CFSTR("HDRMetadataAddedByMoltenVK");
 
 using namespace std;
 using namespace SPIRV_CROSS_NAMESPACE;
@@ -1615,12 +1619,9 @@ id<MTLTexture> MVKPresentableSwapchainImage::getMTLTexture(uint8_t planeIndex) {
                 texDesc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead;
                 texDesc.storageMode = MTLStorageModePrivate;
                 
-                // newTextureWithDescriptor already returns a retained object, so don't retain again
-                _mtlTexture = [getMTLDevice() newTextureWithDescriptor:texDesc]; // Fix: removed retain call
+                // newTextureWithDescriptor returns an already retained object
+                _mtlTexture = [getMTLDevice() newTextureWithDescriptor:texDesc];
                 
-//                MVKLogInfo("Creating texture for AVSampleBufferDisplayLayer with size (%d, %d) and format %lu, _mtlTexture %p",
-//                          extent.width, extent.height, (unsigned long)pixFormat, _mtlTexture);
-
                 if (!_mtlTexture) {
                     MVKLogError("Failed to create texture for AVSampleBufferDisplayLayer");
                     setConfigurationResult(VK_ERROR_OUT_OF_DEVICE_MEMORY);
@@ -1760,20 +1761,29 @@ void MVKPresentableSwapchainImage::endPresentation(const MVKImagePresentInfo& pr
 
 // Releases the CAMetalDrawable underlying this image.
 void MVKPresentableSwapchainImage::releaseMetalDrawable() {
-    [_mtlDrawable release];
-	_mtlDrawable = nil;
-    
-    // Also release the texture for AVSampleBufferDisplayLayer if it exists
-//    MVKLogInfo("release _mtlTexture %p count %lu", _mtlTexture, _mtlTexture.retainCount);
-    // The texture is double-retained when created (once by newTextureWithDescriptor and once by explicit retain)
-    // So we need to release it twice to properly clean up
-    if (_mtlTexture && _mtlTexture.retainCount >= 2) {
-        [_mtlTexture release];
-        [_mtlTexture release];
-    } else if (_mtlTexture) {
-        [_mtlTexture release];
+    // Release the CAMetalDrawable if it exists
+    if (_mtlDrawable) {
+        [_mtlDrawable release];
+        _mtlDrawable = nil;
     }
-    _mtlTexture = nil;
+    
+    // Release the texture for AVSampleBufferDisplayLayer if it exists
+    if (_mtlTexture) {
+        [_mtlTexture release];
+        /*
+        // Check the retain count to avoid over-releasing
+        NSUInteger retainCount = _mtlTexture.retainCount;
+        if (retainCount > 0) {
+            [_mtlTexture release];
+            // Only release again if we still have a retain count
+            // This prevents the zombie object issue
+            if (retainCount > 1) {
+                [_mtlTexture release];
+            }
+        }
+        */
+        _mtlTexture = nil;
+    }
 }
 
 // Signal, untrack, and release any signalers that are tracking.
@@ -2766,6 +2776,11 @@ CVPixelBufferRef MVKPresentableSwapchainImage::getPixelBufferFromMTLTexture(id<M
         case MTLPixelFormatRGBA8Unorm_sRGB:
             cvFormat = kCVPixelFormatType_32RGBA;
             break;
+        case MTLPixelFormatRGB10A2Unorm:
+            cvFormat = kCVPixelFormatType_ARGB2101010LEPacked;
+			return createConvertedPixelBufferForRGB10A2(mtlTexture);
+			// return createConvertedPixelBufferForYUV420_10bit(mtlTexture);
+            break;
         default:
             MVKLogInfo("Unsupported MTLPixelFormat %lu for CVPixelBuffer conversion, falling back to 32BGRA", 
                      (unsigned long)mtlFormat);
@@ -2860,21 +2875,83 @@ CVPixelBufferRef MVKPresentableSwapchainImage::getPixelBufferFromMTLTexture(id<M
 AVSampleBuffer* MVKPresentableSwapchainImage::getSampleBufferFromPixelBuffer(CVPixelBufferRef pixelBuffer) {
     if (!pixelBuffer) return nil;
     
+    // Create format description that includes HDR metadata from the pixel buffer
     CMVideoFormatDescriptionRef formatDescription = nil;
     CMVideoFormatDescriptionCreateForImageBuffer(kCFAllocatorDefault, pixelBuffer, &formatDescription);
     
+    // Check if we have a 10-bit format that might contain HDR content
+    OSType pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer);
+    bool isHDRFormat = (pixelFormat == kCVPixelFormatType_ARGB2101010LEPacked || 
+                        pixelFormat == kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange);
+    
+    // Use dynamic frame rate based on system capabilities, but default to 30fps
     CMSampleTimingInfo timing = {
-        .duration = CMTimeMake(1, 30), // 30 fps
-        .presentationTimeStamp = CMTimeMake(0, 30),
-        .decodeTimeStamp = CMTimeMake(0, 30)
+        .duration = CMTimeMake(1, 60), // 60 fps for smoother HDR content
+        .presentationTimeStamp = CMTimeMake(0, 60),
+        .decodeTimeStamp = CMTimeMake(0, 60)
     };
     
+    // Create the sample buffer with our HDR metadata
     CMSampleBufferRef sampleBuffer = nil;
     CMSampleBufferCreateReadyWithImageBuffer(kCFAllocatorDefault,
                                             pixelBuffer,
                                             formatDescription,
                                             &timing,
                                             &sampleBuffer);
+    
+    // Attach HDR metadata to the CMSampleBuffer
+    CMSetAttachment(sampleBuffer,
+                    kCMFormatDescriptionExtension_ColorPrimaries,
+                    kCMFormatDescriptionColorPrimaries_ITU_R_709_2,
+                    kCMAttachmentMode_ShouldPropagate);
+    
+    CMSetAttachment(sampleBuffer,
+                    kCMFormatDescriptionExtension_TransferFunction,
+                    kCMFormatDescriptionTransferFunction_ITU_R_709_2, // PQ transfer function
+                    kCMAttachmentMode_ShouldPropagate);
+    
+    CMSetAttachment(sampleBuffer,
+                    kCMFormatDescriptionExtension_YCbCrMatrix,
+                    kCMFormatDescriptionYCbCrMatrix_ITU_R_709_2,
+                    kCMAttachmentMode_ShouldPropagate);
+    NSDictionary *contentLightLevel = @{
+        (NSString *)kCVImageBufferContentLightLevelInfoKey: @{
+            @"MaxCLL": @(10000), // Max content light level
+            @"MaxFALL": @(400)   // Max frame-average light level
+        }
+    };
+    CVBufferSetAttachments(pixelBuffer,
+                           (__bridge CFDictionaryRef)contentLightLevel,
+                           kCVAttachmentMode_ShouldPropagate);
+    
+    /*
+    // If we have an HDR format, ensure HDR metadata is attached to sample buffer if not already
+    if (isHDRFormat && sampleBuffer) {
+        CFArrayRef attachmentsArray = CMSampleBufferGetSampleAttachmentsArray(sampleBuffer, true);
+        if (attachmentsArray && CFArrayGetCount(attachmentsArray) > 0) {
+            // Get existing metadata from pixel buffer
+            CFDictionaryRef colorAttachments = CVBufferGetAttachments(pixelBuffer, kCVAttachmentMode_ShouldPropagate);
+            if (colorAttachments) {
+                // Transfer HDR-specific metadata to the sample buffer if needed
+                CFTypeRef transferFunction = CFDictionaryGetValue(colorAttachments, kCVImageBufferTransferFunctionKey);
+                CFTypeRef colorPrimaries = CFDictionaryGetValue(colorAttachments, kCVImageBufferColorPrimariesKey);
+                CFTypeRef yCbCrMatrix = CFDictionaryGetValue(colorAttachments, kCVImageBufferYCbCrMatrixKey);
+                CFTypeRef masteringDisplayInfo = CFDictionaryGetValue(colorAttachments, kCVImageBufferMasteringDisplayColorVolumeKey);
+                CFTypeRef contentLightLevelInfo = CFDictionaryGetValue(colorAttachments, kCVImageBufferContentLightLevelInfoKey);
+                
+                // If any HDR metadata is available in pixel buffer but not in sample buffer, add it
+                CFMutableDictionaryRef sampleAttachments = (CFMutableDictionaryRef)CFArrayGetValueAtIndex(attachmentsArray, 0);
+                if (sampleAttachments) {
+                    if (transferFunction) CFDictionarySetValue(sampleAttachments, kCVImageBufferTransferFunctionKey, transferFunction);
+                    if (colorPrimaries) CFDictionarySetValue(sampleAttachments, kCVImageBufferColorPrimariesKey, colorPrimaries);
+                    if (yCbCrMatrix) CFDictionarySetValue(sampleAttachments, kCVImageBufferYCbCrMatrixKey, yCbCrMatrix);
+                    if (masteringDisplayInfo) CFDictionarySetValue(sampleAttachments, kCVImageBufferMasteringDisplayColorVolumeKey, masteringDisplayInfo);
+                    if (contentLightLevelInfo) CFDictionarySetValue(sampleAttachments, kCVImageBufferContentLightLevelInfoKey, contentLightLevelInfo);
+                }
+            }
+        }
+    }
+    */
     
     CFRelease(formatDescription);
     
@@ -2884,7 +2961,7 @@ AVSampleBuffer* MVKPresentableSwapchainImage::getSampleBufferFromPixelBuffer(CVP
 // Present to AVSampleBufferDisplayLayer
 VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer> mtlCmdBuff,
                                                             MVKImagePresentInfo presentInfo) {
-    // Get the AVSampleBufferDisplayLayer
+    
     AVSampleBufferDisplayLayer *avLayer = _swapchain->getAVSampleBufferDisplayLayer();
     if (!avLayer) {
         return VK_ERROR_SURFACE_LOST_KHR;
@@ -2908,6 +2985,29 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
         return VK_ERROR_SURFACE_LOST_KHR;
     }
     
+    // Check if the format is a potential HDR format
+    bool isHDRCapableFormat = (mtlTex.pixelFormat == MTLPixelFormatRGB10A2Unorm || 
+                              mtlTex.pixelFormat == MTLPixelFormatRGBA16Float);
+    
+    // Configure extended dynamic range if the format supports it
+    if (isHDRCapableFormat) {
+        if (@available(macOS 10.15, iOS 13.0, tvOS 13.0, *)) {
+            // avLayer.preventsDisplaySleepDuringVideoPlayback = YES;
+            
+            // Enable extended dynamic range on the layer for HDR formats
+            avLayer.wantsExtendedDynamicRangeContentMVK = YES;
+            
+            // For future proofing, also try to use the standard API if available
+            SEL extendedDynamicRangeSelector = NSSelectorFromString(@"setWantsExtendedDynamicRangeContent:");
+            if ([avLayer respondsToSelector:extendedDynamicRangeSelector]) {
+                #pragma clang diagnostic push
+                #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+                [avLayer performSelector:extendedDynamicRangeSelector withObject:@YES];
+                #pragma clang diagnostic pop
+            }
+        }
+    }
+    
     // Now we need to convert the MTLTexture to a CVPixelBuffer
     // Add a final blit to ensure the texture is up to date
     id<MTLBlitCommandEncoder> blitEncoder = [mtlCmdBuff blitCommandEncoder];
@@ -2921,9 +3021,26 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
     __block uint64_t currentFrame = frameCounter++;
     
     // On scheduled handler, convert texture to pixel buffer and enqueue to AVSampleBufferDisplayLayer
+    __block AVSampleBufferDisplayLayer *capturedLayer = avLayer;
     [mtlCmdBuff addScheduledHandler:^(id<MTLCommandBuffer> mcb) {
+        // Ensure the layer is still valid and hasn't been invalidated by rotation
+        if (!capturedLayer || capturedLayer.status == AVQueuedSampleBufferRenderingStatusFailed) {
+            endPresentation(presentInfo, signaler);
+            return;
+        }
+        
         // Convert texture to pixel buffer
-        CVPixelBufferRef pixelBuffer = getPixelBufferFromMTLTexture(mtlTex);
+        CVPixelBufferRef pixelBuffer = nil;
+        
+        // Use appropriate conversion method based on format
+        if (mtlTex.pixelFormat == MTLPixelFormatRGB10A2Unorm) {
+            // Use our specialized converter for 10-bit format
+            pixelBuffer = createConvertedPixelBufferForRGB10A2(mtlTex);
+        } else {
+            // Use standard conversion for other formats
+            pixelBuffer = getPixelBufferFromMTLTexture(mtlTex);
+        }
+        
         if (!pixelBuffer) {
             MVKLogError("Failed to create CVPixelBuffer from MTLTexture for AVSampleBufferDisplayLayer");
             endPresentation(presentInfo, signaler);
@@ -2934,11 +3051,13 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
         CMVideoFormatDescriptionRef formatDescription = nil;
         CMVideoFormatDescriptionCreateForImageBuffer(kCFAllocatorDefault, pixelBuffer, &formatDescription);
         
-        // Use increasing timestamps for each frame (30fps)
+        // Check for HDR format
+        // Use 60 fps consistently for smooth playback
+        int32_t frameRate = 60;
         CMSampleTimingInfo timing = {
-            .duration = CMTimeMake(1, 30), // 30 fps
-            .presentationTimeStamp = CMTimeMake(currentFrame, 30),
-            .decodeTimeStamp = CMTimeMake(currentFrame, 30)
+            .duration = CMTimeMake(1, frameRate),
+            .presentationTimeStamp = CMTimeMake(currentFrame, frameRate),
+            .decodeTimeStamp = CMTimeMake(currentFrame, frameRate)
         };
         
         // Use desired presentation time if provided
@@ -2959,16 +3078,17 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
         CFRelease(formatDescription);
         
         if (status == noErr && sampleBuffer) {
-            // Flush any old frames before enqueueing new one to prevent backlog
-            if (avLayer.status == AVQueuedSampleBufferRenderingStatusFailed) {
-                [avLayer flush];
+            // Check again that layer is still valid before enqueueing
+            if (capturedLayer && capturedLayer.status != AVQueuedSampleBufferRenderingStatusFailed) {
+                // Flush any old frames before enqueueing new one to prevent backlog
+                [capturedLayer flush];
+                
+                // Enqueue the sample buffer
+                [capturedLayer enqueueSampleBuffer:sampleBuffer];
+                
+                // Set video gravity (equivalent to contentsGravity in CALayer)
+                capturedLayer.videoGravity = AVLayerVideoGravityResizeAspect;
             }
-            
-            // Enqueue the sample buffer
-            [avLayer enqueueSampleBuffer:sampleBuffer];
-            
-            // Set video gravity (equivalent to contentsGravity in CALayer)
-            avLayer.videoGravity = AVLayerVideoGravityResizeAspect;
             
             CFRelease(sampleBuffer);
             
@@ -2987,7 +3107,17 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
     retain();
     auto* fence = presentInfo.fence;
     if (fence) { fence->retain(); }
+    
+    // We're already using capturedLayer in the scheduled handler, no need to redefine it here
+    
     [mtlCmdBuff addCompletedHandler: ^(id<MTLCommandBuffer> mcb) {
+        // Check completion status for debugging
+        if (mcb.status == MTLCommandBufferStatusError) {
+            MVKLogError("Command buffer completed with error: %d", (int)mcb.error.code);
+        }
+        
+        // No need to clear capturedLayer as it's already captured in the scheduled handler
+        
         signal(fence);
         if (fence) { fence->release(); }
         release();
@@ -2996,4 +3126,446 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
     signal(signaler.semaphore, signaler.semaphoreSignalToken, mtlCmdBuff);
     
     return getConfigurationResult();
+}
+
+// Helper method to properly convert RGB10A2Unorm to ARGB2101010 format using Metal shader
+CVPixelBufferRef MVKPresentableSwapchainImage::createConvertedPixelBufferForRGB10A2(id<MTLTexture> mtlTexture) {
+    if (!mtlTexture) { return nil; }
+    
+    // Retain the texture at the start since we'll be using it
+    [mtlTexture retain];
+    
+    id<MTLDevice> device = ((MVKSwapchainImage*)this)->getMTLDevice();
+    if (!device) {
+        [mtlTexture release];  // Release if we're returning early
+        return nil;
+    }
+    
+    // Create destination pixel buffer with proper HDR metadata
+    CVPixelBufferRef pixelBuffer = nil;
+    NSDictionary* pixelBufferAttributes = @{
+        (NSString*)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_ARGB2101010LEPacked),
+        (NSString*)kCVPixelBufferWidthKey: @(mtlTexture.width),
+        (NSString*)kCVPixelBufferHeightKey: @(mtlTexture.height),
+        (NSString*)kCVPixelBufferMetalCompatibilityKey: @YES,
+        (NSString*)kCVPixelBufferIOSurfacePropertiesKey: @{},
+        // HDR metadata - using PQ (SMPTE ST 2084) transfer function and BT.2020 color primaries
+        (NSString*)kCVImageBufferTransferFunctionKey: (NSString*)kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ,
+        (NSString*)kCVImageBufferColorPrimariesKey: (NSString*)kCVImageBufferColorPrimaries_ITU_R_2020,
+        (NSString*)kCVImageBufferYCbCrMatrixKey: (NSString*)kCVImageBufferYCbCrMatrix_ITU_R_2020,
+        // Adding HDR mastering display color volume
+        (NSString*)kCVImageBufferMasteringDisplayColorVolumeKey: @{
+            @"AVVideoMasteringDisplayMaximumLuminance": @(1000.0),           // 1000 nits peak brightness
+            @"AVVideoMasteringDisplayMinimumLuminance": @(0.0005),           // 0.0005 nits minimum luminance
+            @"AVVideoMasteringDisplayPrimaries": @[
+                @[@(0.708), @(0.292)],  // Red primary (x,y)
+                @[@(0.170), @(0.797)],  // Green primary (x,y)
+                @[@(0.131), @(0.046)]   // Blue primary (x,y)
+            ],
+            @"AVVideoMasteringDisplayWhitePoint": @[@(0.3127), @(0.3290)]    // D65 white point
+        },
+        // Content light level information
+        (NSString*)kCVImageBufferContentLightLevelInfoKey: @{
+            @"AVVideoContentLightLevelMaxContentLightLevel": @(1000),         // MaxCLL 1000 nits
+            @"AVVideoContentLightLevelMaxAverageLightLevel": @(400)          // MaxFALL 400 nits
+        }
+    };
+    
+    CVReturn cvReturn = CVPixelBufferCreate(kCFAllocatorDefault,
+                                          mtlTexture.width,
+                                          mtlTexture.height,
+                                          kCVPixelFormatType_ARGB2101010LEPacked,
+                                          (__bridge CFDictionaryRef)pixelBufferAttributes,
+                                          &pixelBuffer);
+    
+    if (cvReturn != kCVReturnSuccess || !pixelBuffer) {
+        MVKLogError("Failed to create CVPixelBuffer: %d", cvReturn);
+        return nil;
+    }
+    
+    // Initialize the shader components once
+    static dispatch_once_t onceToken;
+    static id<MTLComputePipelineState> pipelineState = nil;
+    
+    dispatch_once(&onceToken, ^{
+        NSString *shaderSource = @"#include <metal_stdlib>\n"
+                                "using namespace metal;\n"
+                                "\n"
+                                "kernel void convertRGB10A2ToARGB2101010(texture2d<float, access::read> source [[texture(0)]],\n"
+                                "                                        device uint32_t *output [[buffer(0)]],\n"
+                                "                                        device uint32_t &bytesPerRow [[buffer(1)]],\n"
+                                "                                        uint2 gid [[thread_position_in_grid]]) {\n"
+                                "    // Read the source texture (RGB10A2Unorm format)\n"
+                                "    float4 color = source.read(gid);\n"
+                                "\n"
+                                "    // Simple direct bit-exact conversion\n"
+                                "    // This preserves the RGB values as they are in the source texture\n"
+                                "    uint32_t r = uint32_t(round(color.r * 1023.0f));\n"
+                                "    uint32_t g = uint32_t(round(color.g * 1023.0f));\n"
+                                "    uint32_t b = uint32_t(round(color.b * 1023.0f));\n"
+                                "    uint32_t a = uint32_t(round(color.a * 3.0f));\n"
+                                "\n"
+                                "    // Ensure values don't exceed their bit ranges\n"
+                                "    r = min(r, 1023u);\n"
+                                "    g = min(g, 1023u);\n"
+                                "    b = min(b, 1023u);\n"
+                                "    a = min(a, 3u);\n"
+                                "\n"
+                                "    // Pack into ARGB2101010 (A2R10G10B10) format\n"
+                                "    uint32_t packed = (a << 30) | (r << 20) | (g << 10) | b;\n"
+                                "\n"
+                                "    // Write to output buffer using proper stride\n"
+                                "    output[gid.y * (bytesPerRow / 4) + gid.x] = packed;\n"
+                                "}";
+        
+        NSError *error = nil;
+        id<MTLLibrary> library = [device newLibraryWithSource:shaderSource options:nil error:&error];
+        if (!library) {
+            MVKLogError("Failed to compile Metal shader: %s", error.localizedDescription.UTF8String);
+            return;
+        }
+        
+        id<MTLFunction> kernelFunction = [library newFunctionWithName:@"convertRGB10A2ToARGB2101010"];
+        if (!kernelFunction) {
+            [library release];
+            MVKLogError("Failed to get kernel function from Metal library");
+            return;
+        }
+        
+        pipelineState = [device newComputePipelineStateWithFunction:kernelFunction error:&error];
+        if (!pipelineState) {
+            [kernelFunction release];
+            [library release];
+            MVKLogError("Failed to create compute pipeline: %s", error.localizedDescription.UTF8String);
+            return;
+        }
+        
+        // These are now retained by pipelineState, so we can release them
+        [kernelFunction release];
+        [library release];
+    });
+    
+    // Check if shader initialization failed
+    if (!pipelineState) {
+        CVPixelBufferRelease(pixelBuffer);
+        return nil;
+    }
+    
+    // Lock the pixel buffer for writing
+    CVReturn lockStatus = CVPixelBufferLockBaseAddress(pixelBuffer, 0);
+    if (lockStatus != kCVReturnSuccess) {
+        MVKLogError("Failed to lock pixel buffer: %d", lockStatus);
+        CVPixelBufferRelease(pixelBuffer);
+        return nil;
+    }
+    
+    // Get buffer pointers and properties
+    void *baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer);
+    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer);
+    
+    // Create a Metal buffer for the destination
+    id<MTLBuffer> outputBuffer = [device newBufferWithBytesNoCopy:baseAddress
+                                                          length:bytesPerRow * mtlTexture.height
+                                                         options:MTLResourceStorageModeShared
+                                                     deallocator:nil];
+    
+    id<MTLBuffer> bytesPerRowBuffer = [device newBufferWithBytes:&bytesPerRow
+                                                         length:sizeof(uint32_t)
+                                                        options:MTLResourceStorageModeShared];
+    
+    // Execute the shader
+    id<MTLCommandQueue> commandQueue = [device newCommandQueue];
+    id<MTLCommandBuffer> commandBuffer = [commandQueue commandBuffer];
+    id<MTLComputeCommandEncoder> computeEncoder = [commandBuffer computeCommandEncoder];
+    
+    [computeEncoder setComputePipelineState:pipelineState];
+    [computeEncoder setTexture:mtlTexture atIndex:0];
+    [computeEncoder setBuffer:outputBuffer offset:0 atIndex:0];
+    [computeEncoder setBuffer:bytesPerRowBuffer offset:0 atIndex:1];
+    
+    MTLSize threadsPerGrid = MTLSizeMake(mtlTexture.width, mtlTexture.height, 1);
+    MTLSize threadsPerThreadgroup = MTLSizeMake(16, 16, 1);  // Adjust based on device capabilities
+    [computeEncoder dispatchThreads:threadsPerGrid threadsPerThreadgroup:threadsPerThreadgroup];
+    
+    [computeEncoder endEncoding];
+    [commandBuffer commit];
+    [commandBuffer waitUntilCompleted];
+    
+    // Unlock the pixel buffer
+    CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+    
+    // Clean up Metal resources
+    [outputBuffer release];
+    [bytesPerRowBuffer release];
+    [commandQueue release];
+    
+    // Make sure to release the texture before returning
+    [mtlTexture release];
+    
+    return pixelBuffer;
+}
+
+// Convert RGB texture to 10-bit YUV 4:2:0 format (kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange)
+CVPixelBufferRef MVKPresentableSwapchainImage::createConvertedPixelBufferForYUV420_10bit(id<MTLTexture> mtlTexture) {
+    if (!mtlTexture) { return nil; }
+    
+    id<MTLDevice> device = ((MVKSwapchainImage*)this)->getMTLDevice();
+    if (!device) { return nil; }
+    
+    // Create destination pixel buffer with YUV 4:2:0 10-bit format
+    CVPixelBufferRef pixelBuffer = nil;
+    NSDictionary* pixelBufferAttributes = @{
+        (NSString*)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange),
+        (NSString*)kCVPixelBufferWidthKey: @(mtlTexture.width),
+        (NSString*)kCVPixelBufferHeightKey: @(mtlTexture.height),
+        (NSString*)kCVPixelBufferMetalCompatibilityKey: @YES,
+        (NSString*)kCVPixelBufferIOSurfacePropertiesKey: @{},
+        // Specify color space attributes for proper HDR handling
+        (NSString*)kCVImageBufferYCbCrMatrixKey: (NSString*)kCVImageBufferYCbCrMatrix_ITU_R_2020,
+        (NSString*)kCVImageBufferColorPrimariesKey: (NSString*)kCVImageBufferColorPrimaries_ITU_R_2020,
+        (NSString*)kCVImageBufferTransferFunctionKey: (NSString*)kCVImageBufferTransferFunction_ITU_R_2020
+    };
+    
+    CVReturn cvReturn = CVPixelBufferCreate(kCFAllocatorDefault,
+                                          mtlTexture.width,
+                                          mtlTexture.height,
+                                          kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange,
+                                          (__bridge CFDictionaryRef)pixelBufferAttributes,
+                                          &pixelBuffer);
+    
+    if (cvReturn != kCVReturnSuccess || !pixelBuffer) {
+        MVKLogError("Failed to create YUV CVPixelBuffer: %d", cvReturn);
+        return nil;
+    }
+    
+    // Initialize the shader components once
+    static dispatch_once_t onceToken;
+    static id<MTLComputePipelineState> pipelineState = nil;
+    
+    dispatch_once(&onceToken, ^{
+        NSString *shaderSource = @"#include <metal_stdlib>\n"
+                                "using namespace metal;\n"
+                                "\n"
+                                "// RGB to YUV conversion matrix - Rec. 2020/BT.2020 with video range\n"
+                                "constant float3x3 kRGB2YUVVideo = float3x3(\n"
+                                "    float3(0.2627, 0.6780, 0.0593),  // Y\n"
+                                "    float3(-0.1396, -0.3604, 0.5000), // Cb (U)\n"
+                                "    float3(0.5000, -0.4598, -0.0402)  // Cr (V)\n"
+                                ");\n"
+                                "\n"
+                                "constant float3 kYUVOffset = float3(64.0/1023.0, 512.0/1023.0, 512.0/1023.0);\n"
+                                "\n"
+                                "kernel void convertRGBToYUV420_10bit(\n"
+                                "    texture2d<float, access::read> source [[texture(0)]],\n"
+                                "    texture2d<float, access::write> yPlane [[texture(1)]],\n"
+                                "    texture2d<float, access::write> uvPlane [[texture(2)]],\n"
+                                "    uint2 gid [[thread_position_in_grid]]) {\n"
+                                "\n"
+                                "    // Each thread processes one Y pixel and contributes to UV\n"
+                                "    // Check if we're in bounds\n"
+                                "    if (gid.x >= yPlane.get_width() || gid.y >= yPlane.get_height()) {\n"
+                                "        return;\n"
+                                "    }\n"
+                                "\n"
+                                "    // Load RGB value\n"
+                                "    float3 rgb = source.read(gid).rgb;\n"
+                                "\n"
+                                "    // Convert to YUV\n"
+                                "    float3 yuv;\n"
+                                "    yuv.x = dot(rgb, kRGB2YUVVideo[0]);             // Y\n"
+                                "    yuv.y = dot(rgb, kRGB2YUVVideo[1]) + 0.5;       // U (Cb)\n"
+                                "    yuv.z = dot(rgb, kRGB2YUVVideo[2]) + 0.5;       // V (Cr)\n"
+                                "\n"
+                                "    // Scale from full range to video range for 10-bit\n"
+                                "    yuv = yuv * (940.0 - 64.0)/1023.0 + kYUVOffset;\n"
+                                "\n"
+                                "    // Write Y component (full resolution)\n"
+                                "    yPlane.write(float4(yuv.x, 0, 0, 1), gid);\n"
+                                "\n"
+                                "    // Contribute to UV plane (half resolution, 4:2:0 subsampling)\n"
+                                "    // Only process UV when we're at even coordinates\n"
+                                "    if (gid.x % 2 == 0 && gid.y % 2 == 0) {\n"
+                                "        uint2 uvCoord = gid / 2;\n"
+                                "\n"
+                                "        // Sample 2x2 region and average for UV values\n"
+                                "        float3 yuv00 = float3(yuv.x, yuv.y, yuv.z);\n"
+                                "        float3 yuv10 = float3(0);\n"
+                                "        float3 yuv01 = float3(0);\n"
+                                "        float3 yuv11 = float3(0);\n"
+                                "\n"
+                                "        // Check bounds for other pixels in 2x2 block\n"
+                                "        uint2 pos;\n"
+                                "        \n"
+                                "        // Right pixel\n"
+                                "        pos = uint2(gid.x + 1, gid.y);\n"
+                                "        if (pos.x < source.get_width()) {\n"
+                                "            float3 rgb10 = source.read(pos).rgb;\n"
+                                "            yuv10.y = dot(rgb10, kRGB2YUVVideo[1]) + 0.5;\n"
+                                "            yuv10.z = dot(rgb10, kRGB2YUVVideo[2]) + 0.5;\n"
+                                "            yuv10.yz = yuv10.yz * (940.0 - 64.0)/1023.0 + kYUVOffset.yz;\n"
+                                "        } else {\n"
+                                "            yuv10.yz = yuv00.yz;\n"
+                                "        }\n"
+                                "\n"
+                                "        // Bottom pixel\n"
+                                "        pos = uint2(gid.x, gid.y + 1);\n"
+                                "        if (pos.y < source.get_height()) {\n"
+                                "            float3 rgb01 = source.read(pos).rgb;\n"
+                                "            yuv01.y = dot(rgb01, kRGB2YUVVideo[1]) + 0.5;\n"
+                                "            yuv01.z = dot(rgb01, kRGB2YUVVideo[2]) + 0.5;\n"
+                                "            yuv01.yz = yuv01.yz * (940.0 - 64.0)/1023.0 + kYUVOffset.yz;\n"
+                                "        } else {\n"
+                                "            yuv01.yz = yuv00.yz;\n"
+                                "        }\n"
+                                "\n"
+                                "        // Bottom-right pixel\n"
+                                "        pos = uint2(gid.x + 1, gid.y + 1);\n"
+                                "        if (pos.x < source.get_width() && pos.y < source.get_height()) {\n"
+                                "            float3 rgb11 = source.read(pos).rgb;\n"
+                                "            yuv11.y = dot(rgb11, kRGB2YUVVideo[1]) + 0.5;\n"
+                                "            yuv11.z = dot(rgb11, kRGB2YUVVideo[2]) + 0.5;\n"
+                                "            yuv11.yz = yuv11.yz * (940.0 - 64.0)/1023.0 + kYUVOffset.yz;\n"
+                                "        } else {\n"
+                                "            yuv11.yz = yuv00.yz;\n"
+                                "        }\n"
+                                "\n"
+                                "        // Average UV components\n"
+                                "        float2 uvAvg = (yuv00.yz + yuv10.yz + yuv01.yz + yuv11.yz) * 0.25;\n"
+                                "\n"
+                                "        // Write UV components (CbCr interleaved)\n"
+                                "        uvPlane.write(float4(uvAvg.x, uvAvg.y, 0, 1), uvCoord);\n"
+                                "    }\n"
+                                "}\n";
+        
+        NSError *error = nil;
+        id<MTLLibrary> library = [device newLibraryWithSource:shaderSource options:nil error:&error];
+        if (!library) {
+            MVKLogError("Failed to compile YUV conversion Metal shader: %s", error.localizedDescription.UTF8String);
+            return;
+        }
+        
+        id<MTLFunction> kernelFunction = [library newFunctionWithName:@"convertRGBToYUV420_10bit"];
+        if (!kernelFunction) {
+            [library release];
+            MVKLogError("Failed to get YUV conversion kernel function from Metal library");
+            return;
+        }
+        
+        pipelineState = [device newComputePipelineStateWithFunction:kernelFunction error:&error];
+        if (!pipelineState) {
+            [kernelFunction release];
+            [library release];
+            MVKLogError("Failed to create YUV conversion compute pipeline: %s", error.localizedDescription.UTF8String);
+            return;
+        }
+        
+        [kernelFunction release];
+        [library release];
+    });
+    
+    // Check if shader initialization failed
+    if (!pipelineState) {
+        CVPixelBufferRelease(pixelBuffer);
+        return nil;
+    }
+    
+    // Lock the pixel buffer for writing
+    CVReturn lockStatus = CVPixelBufferLockBaseAddress(pixelBuffer, 0);
+    if (lockStatus != kCVReturnSuccess) {
+        MVKLogError("Failed to lock YUV pixel buffer: %d", lockStatus);
+        CVPixelBufferRelease(pixelBuffer);
+        return nil;
+    }
+    
+    // Create Metal textures from the CVPixelBuffer planes
+    id<MTLTexture> yTexture = nil;
+    id<MTLTexture> uvTexture = nil;
+    
+    // Get Y plane info
+    void *yBaseAddress = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0);
+    size_t yBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0);
+    size_t yWidth = CVPixelBufferGetWidthOfPlane(pixelBuffer, 0);
+    size_t yHeight = CVPixelBufferGetHeightOfPlane(pixelBuffer, 0);
+    
+    // Get UV plane info
+    void *uvBaseAddress = CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1);
+    size_t uvBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1);
+    size_t uvWidth = CVPixelBufferGetWidthOfPlane(pixelBuffer, 1);
+    size_t uvHeight = CVPixelBufferGetHeightOfPlane(pixelBuffer, 1);
+    
+    // Create texture descriptors
+    MTLTextureDescriptor *yDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR16Unorm
+                                                                                     width:yWidth
+                                                                                    height:yHeight
+                                                                                 mipmapped:NO];
+    yDesc.usage = MTLTextureUsageShaderWrite;
+    
+    MTLTextureDescriptor *uvDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRG16Unorm
+                                                                                     width:uvWidth
+                                                                                    height:uvHeight
+                                                                                 mipmapped:NO];
+    uvDesc.usage = MTLTextureUsageShaderWrite;
+    
+    // Create textures from memory
+    yTexture = [device newTextureWithDescriptor:yDesc];
+    uvTexture = [device newTextureWithDescriptor:uvDesc];
+    
+    MTLRegion yRegion = MTLRegionMake2D(0, 0, yWidth, yHeight);
+    MTLRegion uvRegion = MTLRegionMake2D(0, 0, uvWidth, uvHeight);
+    
+    [yTexture replaceRegion:yRegion mipmapLevel:0 withBytes:yBaseAddress bytesPerRow:yBytesPerRow];
+    [uvTexture replaceRegion:uvRegion mipmapLevel:0 withBytes:uvBaseAddress bytesPerRow:uvBytesPerRow];
+    
+    // Execute the shader
+    id<MTLCommandQueue> commandQueue = [device newCommandQueue];
+    id<MTLCommandBuffer> commandBuffer = [commandQueue commandBuffer];
+    id<MTLComputeCommandEncoder> computeEncoder = [commandBuffer computeCommandEncoder];
+    
+    [computeEncoder setComputePipelineState:pipelineState];
+    [computeEncoder setTexture:mtlTexture atIndex:0]; // RGB source
+    [computeEncoder setTexture:yTexture atIndex:1];   // Y plane
+    [computeEncoder setTexture:uvTexture atIndex:2];  // UV plane
+    
+    MTLSize threadsPerGrid = MTLSizeMake(mtlTexture.width, mtlTexture.height, 1);
+    MTLSize threadsPerThreadgroup = MTLSizeMake(16, 16, 1);
+    [computeEncoder dispatchThreads:threadsPerGrid threadsPerThreadgroup:threadsPerThreadgroup];
+    
+    [computeEncoder endEncoding];
+    [commandBuffer commit];
+    [commandBuffer waitUntilCompleted];
+    
+    // Copy data from textures back to pixel buffer planes
+    [yTexture getBytes:yBaseAddress bytesPerRow:yBytesPerRow fromRegion:yRegion mipmapLevel:0];
+    [uvTexture getBytes:uvBaseAddress bytesPerRow:uvBytesPerRow fromRegion:uvRegion mipmapLevel:0];
+    
+    // Clean up resources
+    [yTexture release];
+    [uvTexture release];
+    [commandQueue release];
+    
+    // Unlock the pixel buffer
+    CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+    
+    return pixelBuffer;
+}
+
+// At the end of the class implementation, add a cleanup function for the static pipeline state
+void MVKPresentableSwapchainImage::initialize() {
+	// Register for cleanup at process exit
+	atexit([]() {
+		// Release the static pipeline state if it exists
+		static id<MTLComputePipelineState> pipelineState = nil;
+		if (pipelineState) {
+			[pipelineState release];
+			pipelineState = nil;
+		}
+	});
+}
+
+void MVKPresentableSwapchainImage::prepareForResize() {
+    // Ensure all command buffers using this image have completed
+    _device->waitIdle();
+    
+    // Release current drawable and textures
+    releaseMetalDrawable();
 }
