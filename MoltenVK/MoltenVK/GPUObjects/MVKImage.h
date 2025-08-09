@@ -527,13 +527,17 @@ protected:
 //	VkResult acquireAndSignalWhenAvailable(MVKSemaphore* semaphore, MVKFence* fence);
 	MVKSwapchainSignaler getPresentationSignaler();
 
-	CVPixelBufferRef createConvertedPixelBufferForRGB10A2(id<MTLTexture> mtlTexture);
+	NSDictionary* extractHDRMetadata(CMSampleBufferRef sourceSampleBuffer, CVPixelBufferRef sourcePixelBuffer);
+	CVPixelBufferRef createConvertedPixelBufferForRGB10A2(id<MTLTexture> mtlTexture, CMSampleBufferRef sourceSampleBuffer = nullptr, CVPixelBufferRef sourcePixelBuffer = nullptr, bool forceHDRProcessing = false);
+	void setSourceHDRMetadata(NSDictionary* hdrMetadata);
+	NSDictionary* getSourceHDRMetadata() const;
 	CVPixelBufferRef createConvertedPixelBufferForYUV420_10bit(id<MTLTexture> mtlTexture);
 	void releaseShaderResources();
 
 	id<CAMetalDrawable> _mtlDrawable = nil;
 	id<MTLTexture> _mtlTextureHeadless = nil;
 	id<MTLTexture> _mtlTexture = nil;  // For AVSampleBufferDisplayLayer rendering
+	NSDictionary* _sourceHDRMetadata = nil;  // Cached source HDR metadata for pixel buffer creation
 	MVKSwapchainImageAvailability _availability;
 	MVKSmallVector<MVKSwapchainSignaler, 1> _availabilitySignalers;
 	MVKSwapchainSignaler _preSignaler = {};

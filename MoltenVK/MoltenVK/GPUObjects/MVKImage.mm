@@ -1870,6 +1870,8 @@ void MVKPresentableSwapchainImage::destroy() {
 MVKPresentableSwapchainImage::~MVKPresentableSwapchainImage() {
 	makeAvailable();
     releaseMetalDrawable();  // Make sure to release all Metal resources
+    [_sourceHDRMetadata release];
+    _sourceHDRMetadata = nil;
 }
 
 
@@ -2678,7 +2680,7 @@ CVPixelBufferRef MVKPresentableSwapchainImage::getPixelBufferFromMTLTexture(id<M
             break;
         case MTLPixelFormatRGB10A2Unorm:
             cvFormat = kCVPixelFormatType_ARGB2101010LEPacked;
-			return createConvertedPixelBufferForRGB10A2(mtlTexture);
+			return createConvertedPixelBufferForRGB10A2(mtlTexture, nullptr, nullptr, false);
 			// return createConvertedPixelBufferForYUV420_10bit(mtlTexture);
             break;
         default:
@@ -2935,7 +2937,16 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
         // Use appropriate conversion method based on format
         if (mtlTex.pixelFormat == MTLPixelFormatRGB10A2Unorm) {
             // Use our specialized converter for 10-bit format
-            pixelBuffer = createConvertedPixelBufferForRGB10A2(mtlTex);
+            // Check if we should force HDR processing based on stored metadata
+            bool forceHDR = false;
+            if (_sourceHDRMetadata) {
+                NSString* transferFunction = _sourceHDRMetadata[(NSString*)kCVImageBufferTransferFunctionKey];
+                if ([transferFunction isEqualToString:(NSString*)kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ] ||
+                    [transferFunction isEqualToString:(NSString*)kCVImageBufferTransferFunction_ITU_R_2100_HLG]) {
+                    forceHDR = true;
+                }
+            }
+            pixelBuffer = createConvertedPixelBufferForRGB10A2(mtlTex, nullptr, nullptr, forceHDR);
         } else {
             // Use standard conversion for other formats
             pixelBuffer = getPixelBufferFromMTLTexture(mtlTex);
@@ -3028,8 +3039,84 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
     return getConfigurationResult();
 }
 
+// Helper method to extract HDR metadata from source sample buffer or pixel buffer
+NSDictionary* MVKPresentableSwapchainImage::extractHDRMetadata(CMSampleBufferRef sourceSampleBuffer, CVPixelBufferRef sourcePixelBuffer) {
+    NSMutableDictionary* hdrMetadata = [NSMutableDictionary dictionary];
+    
+    // Default HDR metadata as fallback
+    NSDictionary* defaultHDRMetadata = @{
+        (NSString*)kCVImageBufferTransferFunctionKey: (NSString*)kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ,
+        (NSString*)kCVImageBufferColorPrimariesKey: (NSString*)kCVImageBufferColorPrimaries_ITU_R_2020,
+        (NSString*)kCVImageBufferYCbCrMatrixKey: (NSString*)kCVImageBufferYCbCrMatrix_ITU_R_2020,
+        (NSString*)kCVImageBufferMasteringDisplayColorVolumeKey: @{
+            @"AVVideoMasteringDisplayMaximumLuminance": @(1000.0),
+            @"AVVideoMasteringDisplayMinimumLuminance": @(0.0005),
+            @"AVVideoMasteringDisplayPrimaries": @[
+                @[@(0.708), @(0.292)],
+                @[@(0.170), @(0.797)],
+                @[@(0.131), @(0.046)]
+            ],
+            @"AVVideoMasteringDisplayWhitePoint": @[@(0.3127), @(0.3290)]
+        },
+        (NSString*)kCVImageBufferContentLightLevelInfoKey: @{
+            @"AVVideoContentLightLevelMaxContentLightLevel": @(1000),
+            @"AVVideoContentLightLevelMaxAverageLightLevel": @(400)
+        }
+    };
+    
+    // Start with default metadata
+    [hdrMetadata addEntriesFromDictionary:defaultHDRMetadata];
+    
+    // Check if we have cached source HDR metadata
+    if (_sourceHDRMetadata) {
+        [hdrMetadata addEntriesFromDictionary:_sourceHDRMetadata];
+    }
+    
+    // Try to extract from source sample buffer first
+    if (sourceSampleBuffer) {
+        CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sourceSampleBuffer);
+        if (imageBuffer) {
+            CFDictionaryRef attachments = CVBufferGetAttachments(imageBuffer, kCVAttachmentMode_ShouldPropagate);
+            if (attachments) {
+                // Extract HDR-specific metadata if available
+                CFTypeRef transferFunction = CFDictionaryGetValue(attachments, kCVImageBufferTransferFunctionKey);
+                CFTypeRef colorPrimaries = CFDictionaryGetValue(attachments, kCVImageBufferColorPrimariesKey);
+                CFTypeRef yCbCrMatrix = CFDictionaryGetValue(attachments, kCVImageBufferYCbCrMatrixKey);
+                CFTypeRef masteringDisplay = CFDictionaryGetValue(attachments, kCVImageBufferMasteringDisplayColorVolumeKey);
+                CFTypeRef contentLightLevel = CFDictionaryGetValue(attachments, kCVImageBufferContentLightLevelInfoKey);
+                
+                if (transferFunction) hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (__bridge id)transferFunction;
+                if (colorPrimaries) hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (__bridge id)colorPrimaries;
+                if (yCbCrMatrix) hdrMetadata[(NSString*)kCVImageBufferYCbCrMatrixKey] = (__bridge id)yCbCrMatrix;
+                if (masteringDisplay) hdrMetadata[(NSString*)kCVImageBufferMasteringDisplayColorVolumeKey] = (__bridge id)masteringDisplay;
+                if (contentLightLevel) hdrMetadata[(NSString*)kCVImageBufferContentLightLevelInfoKey] = (__bridge id)contentLightLevel;
+            }
+        }
+    }
+    
+    // If no source sample buffer, try source pixel buffer
+    if (sourcePixelBuffer && !sourceSampleBuffer) {
+        CFDictionaryRef attachments = CVBufferGetAttachments(sourcePixelBuffer, kCVAttachmentMode_ShouldPropagate);
+        if (attachments) {
+            CFTypeRef transferFunction = CFDictionaryGetValue(attachments, kCVImageBufferTransferFunctionKey);
+            CFTypeRef colorPrimaries = CFDictionaryGetValue(attachments, kCVImageBufferColorPrimariesKey);
+            CFTypeRef yCbCrMatrix = CFDictionaryGetValue(attachments, kCVImageBufferYCbCrMatrixKey);
+            CFTypeRef masteringDisplay = CFDictionaryGetValue(attachments, kCVImageBufferMasteringDisplayColorVolumeKey);
+            CFTypeRef contentLightLevel = CFDictionaryGetValue(attachments, kCVImageBufferContentLightLevelInfoKey);
+            
+            if (transferFunction) hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (__bridge id)transferFunction;
+            if (colorPrimaries) hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (__bridge id)colorPrimaries;
+            if (yCbCrMatrix) hdrMetadata[(NSString*)kCVImageBufferYCbCrMatrixKey] = (__bridge id)yCbCrMatrix;
+            if (masteringDisplay) hdrMetadata[(NSString*)kCVImageBufferMasteringDisplayColorVolumeKey] = (__bridge id)masteringDisplay;
+            if (contentLightLevel) hdrMetadata[(NSString*)kCVImageBufferContentLightLevelInfoKey] = (__bridge id)contentLightLevel;
+        }
+    }
+    
+    return [hdrMetadata copy];
+}
+
 // Helper method to properly convert RGB10A2Unorm to ARGB2101010 format using Metal shader
-CVPixelBufferRef MVKPresentableSwapchainImage::createConvertedPixelBufferForRGB10A2(id<MTLTexture> mtlTexture) {
+CVPixelBufferRef MVKPresentableSwapchainImage::createConvertedPixelBufferForRGB10A2(id<MTLTexture> mtlTexture, CMSampleBufferRef sourceSampleBuffer, CVPixelBufferRef sourcePixelBuffer, bool forceHDRProcessing) {
     if (!mtlTexture) { return nil; }
     
     // Retain the texture at the start since we'll be using it
@@ -3041,35 +3128,21 @@ CVPixelBufferRef MVKPresentableSwapchainImage::createConvertedPixelBufferForRGB1
         return nil;
     }
     
-    // Create destination pixel buffer with proper HDR metadata
+    // Extract HDR metadata from source buffer
+    NSDictionary* hdrMetadata = extractHDRMetadata(sourceSampleBuffer, sourcePixelBuffer);
+    
+    // Create destination pixel buffer with extracted HDR metadata
     CVPixelBufferRef pixelBuffer = nil;
-    NSDictionary* pixelBufferAttributes = @{
+    NSMutableDictionary* pixelBufferAttributes = [NSMutableDictionary dictionaryWithDictionary:@{
         (NSString*)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_ARGB2101010LEPacked),
         (NSString*)kCVPixelBufferWidthKey: @(mtlTexture.width),
         (NSString*)kCVPixelBufferHeightKey: @(mtlTexture.height),
         (NSString*)kCVPixelBufferMetalCompatibilityKey: @YES,
-        (NSString*)kCVPixelBufferIOSurfacePropertiesKey: @{},
-        // HDR metadata - using PQ (SMPTE ST 2084) transfer function and BT.2020 color primaries
-        (NSString*)kCVImageBufferTransferFunctionKey: (NSString*)kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ,
-        (NSString*)kCVImageBufferColorPrimariesKey: (NSString*)kCVImageBufferColorPrimaries_ITU_R_2020,
-        (NSString*)kCVImageBufferYCbCrMatrixKey: (NSString*)kCVImageBufferYCbCrMatrix_ITU_R_2020,
-        // Adding HDR mastering display color volume
-        (NSString*)kCVImageBufferMasteringDisplayColorVolumeKey: @{
-            @"AVVideoMasteringDisplayMaximumLuminance": @(1000.0),           // 1000 nits peak brightness
-            @"AVVideoMasteringDisplayMinimumLuminance": @(0.0005),           // 0.0005 nits minimum luminance
-            @"AVVideoMasteringDisplayPrimaries": @[
-                @[@(0.708), @(0.292)],  // Red primary (x,y)
-                @[@(0.170), @(0.797)],  // Green primary (x,y)
-                @[@(0.131), @(0.046)]   // Blue primary (x,y)
-            ],
-            @"AVVideoMasteringDisplayWhitePoint": @[@(0.3127), @(0.3290)]    // D65 white point
-        },
-        // Content light level information
-        (NSString*)kCVImageBufferContentLightLevelInfoKey: @{
-            @"AVVideoContentLightLevelMaxContentLightLevel": @(1000),         // MaxCLL 1000 nits
-            @"AVVideoContentLightLevelMaxAverageLightLevel": @(400)          // MaxFALL 400 nits
-        }
-    };
+        (NSString*)kCVPixelBufferIOSurfacePropertiesKey: @{}
+    }];
+    
+    // Add extracted HDR metadata to pixel buffer attributes
+    [pixelBufferAttributes addEntriesFromDictionary:hdrMetadata];
     
     CVReturn cvReturn = CVPixelBufferCreate(kCFAllocatorDefault,
                                           mtlTexture.width,
@@ -3091,20 +3164,56 @@ CVPixelBufferRef MVKPresentableSwapchainImage::createConvertedPixelBufferForRGB1
         NSString *shaderSource = @"#include <metal_stdlib>\n"
                                 "using namespace metal;\n"
                                 "\n"
+                                "// PQ (ST.2084) transfer function for HDR\n"
+                                "float3 linearToPQ(float3 linear) {\n"
+                                "    // PQ constants\n"
+                                "    const float m1 = 0.1593017578125; // 2610.0 / 16384.0\n"
+                                "    const float m2 = 78.84375;        // 2523.0 / 32.0\n"
+                                "    const float c1 = 0.8359375;       // 3424.0 / 4096.0\n"
+                                "    const float c2 = 18.8515625;      // 2413.0 / 128.0\n"
+                                "    const float c3 = 18.6875;         // 2392.0 / 128.0\n"
+                                "    \n"
+                                "    // Normalize to 10000 nits peak\n"
+                                "    float3 Y = linear / 10000.0;\n"
+                                "    float3 Ym1 = pow(Y, m1);\n"
+                                "    float3 numerator = c1 + c2 * Ym1;\n"
+                                "    float3 denominator = 1.0 + c3 * Ym1;\n"
+                                "    return pow(numerator / denominator, m2);\n"
+                                "}\n"
+                                "\n"
+                                "// Inverse PQ for proper HDR handling\n"
+                                "float3 PQToLinear(float3 pq) {\n"
+                                "    const float m1 = 0.1593017578125;\n"
+                                "    const float m2 = 78.84375;\n"
+                                "    const float c1 = 0.8359375;\n"
+                                "    const float c2 = 18.8515625;\n"
+                                "    const float c3 = 18.6875;\n"
+                                "    \n"
+                                "    float3 Ym2 = pow(pq, 1.0 / m2);\n"
+                                "    float3 numerator = max(Ym2 - c1, 0.0);\n"
+                                "    float3 denominator = c2 - c3 * Ym2;\n"
+                                "    float3 Y = pow(numerator / denominator, 1.0 / m1);\n"
+                                "    return Y * 10000.0;\n"
+                                "}\n"
+                                "\n"
                                 "kernel void convertRGB10A2ToARGB2101010(texture2d<float, access::read> source [[texture(0)]],\n"
                                 "                                        device uint32_t *output [[buffer(0)]],\n"
                                 "                                        device uint32_t &bytesPerRow [[buffer(1)]],\n"
+                                "                                        device uint32_t &forceHDR [[buffer(2)]],\n"
                                 "                                        uint2 gid [[thread_position_in_grid]]) {\n"
                                 "    // Read the source texture (RGB10A2Unorm format)\n"
                                 "    float4 color = source.read(gid);\n"
                                 "\n"
-                                "    // Simple direct bit-exact conversion\n"
-                                "    // This preserves the RGB values as they are in the source texture\n"
-                                "    uint32_t r = uint32_t(round(color.r * 1023.0f));\n"
-                                "    uint32_t g = uint32_t(round(color.g * 1023.0f));\n"
-                                "    uint32_t b = uint32_t(round(color.b * 1023.0f));\n"
+                                "    // For now, preserve all color values exactly as-is\n"
+                                "    // Future: could add HDR-specific processing when forceHDR > 0\n"
+                                "    float3 processedColor = color.rgb;\n"
+                                "    \n"
+                                "    // Convert to 10-bit integers (restore original behavior)\n"
+                                "    uint32_t r = uint32_t(round(processedColor.r * 1023.0f));\n"
+                                "    uint32_t g = uint32_t(round(processedColor.g * 1023.0f));\n"
+                                "    uint32_t b = uint32_t(round(processedColor.b * 1023.0f));\n"
                                 "    uint32_t a = uint32_t(round(color.a * 3.0f));\n"
-                                "\n"
+                                "    \n"
                                 "    // Ensure values don't exceed their bit ranges\n"
                                 "    r = min(r, 1023u);\n"
                                 "    g = min(g, 1023u);\n"
@@ -3183,6 +3292,12 @@ CVPixelBufferRef MVKPresentableSwapchainImage::createConvertedPixelBufferForRGB1
     [computeEncoder setBuffer:outputBuffer offset:0 atIndex:0];
     [computeEncoder setBuffer:bytesPerRowBuffer offset:0 atIndex:1];
     
+    uint32_t forceHDRFlag = forceHDRProcessing ? 1 : 0;
+    id<MTLBuffer> forceHDRBuffer = [device newBufferWithBytes:&forceHDRFlag
+                                                       length:sizeof(uint32_t)
+                                                      options:MTLResourceStorageModeShared];
+    [computeEncoder setBuffer:forceHDRBuffer offset:0 atIndex:2];
+    
     MTLSize threadsPerGrid = MTLSizeMake(mtlTexture.width, mtlTexture.height, 1);
     MTLSize threadsPerThreadgroup = MTLSizeMake(16, 16, 1);  // Adjust based on device capabilities
     [computeEncoder dispatchThreads:threadsPerGrid threadsPerThreadgroup:threadsPerThreadgroup];
@@ -3197,6 +3312,7 @@ CVPixelBufferRef MVKPresentableSwapchainImage::createConvertedPixelBufferForRGB1
     // Clean up Metal resources
     [outputBuffer release];
     [bytesPerRowBuffer release];
+    [forceHDRBuffer release];
     [commandQueue release];
     
     // Make sure to release the texture before returning
@@ -3468,4 +3584,15 @@ void MVKPresentableSwapchainImage::prepareForResize() {
     
     // Release current drawable and textures
     releaseMetalDrawable();
+}// Additional HDR metadata setter/getter methods for MVKPresentableSwapchainImage
+
+// Set source HDR metadata for dynamic extraction
+void MVKPresentableSwapchainImage::setSourceHDRMetadata(NSDictionary* hdrMetadata) {
+    [_sourceHDRMetadata release];
+    _sourceHDRMetadata = [hdrMetadata retain];
+}
+
+// Get cached source HDR metadata
+NSDictionary* MVKPresentableSwapchainImage::getSourceHDRMetadata() const {
+    return _sourceHDRMetadata;
 }
