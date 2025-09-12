@@ -3037,15 +3037,28 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
         // Use appropriate conversion method based on format
         if (mtlTex.pixelFormat == MTLPixelFormatRGB10A2Unorm) {
             // Use our specialized converter for 10-bit format
-            // Check if we should force HDR processing based on stored metadata
+            // Check if we should force HDR processing based on color space and stored metadata
             bool forceHDR = false;
-            if (_sourceHDRMetadata) {
+            
+            // Check color space first
+            if (_swapchain) {
+                VkColorSpaceKHR colorSpace = _swapchain->getImageColorSpace();
+#if MVK_XCODE_12
+                if (colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT || colorSpace == VK_COLOR_SPACE_HDR10_HLG_EXT) {
+                    forceHDR = true;
+                }
+#endif
+            }
+            
+            // Also check stored metadata as fallback
+            if (!forceHDR && _sourceHDRMetadata) {
                 NSString* transferFunction = _sourceHDRMetadata[(NSString*)kCVImageBufferTransferFunctionKey];
                 if ([transferFunction isEqualToString:(NSString*)kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ] ||
                     [transferFunction isEqualToString:(NSString*)kCVImageBufferTransferFunction_ITU_R_2100_HLG]) {
                     forceHDR = true;
                 }
             }
+            
             pixelBuffer = createConvertedPixelBufferForRGB10A2(mtlTex, nullptr, nullptr, forceHDR);
         } else {
             // Use standard conversion for other formats
@@ -3143,36 +3156,109 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
 NSDictionary* MVKPresentableSwapchainImage::extractHDRMetadata(CMSampleBufferRef sourceSampleBuffer, CVPixelBufferRef sourcePixelBuffer) {
     NSMutableDictionary* hdrMetadata = [NSMutableDictionary dictionary];
     
-    // Default HDR metadata as fallback
-    NSDictionary* defaultHDRMetadata = @{
-        (NSString*)kCVImageBufferTransferFunctionKey: (NSString*)kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ,
-        (NSString*)kCVImageBufferColorPrimariesKey: (NSString*)kCVImageBufferColorPrimaries_ITU_R_2020,
-        (NSString*)kCVImageBufferYCbCrMatrixKey: (NSString*)kCVImageBufferYCbCrMatrix_ITU_R_2020,
-        (NSString*)kCVImageBufferMasteringDisplayColorVolumeKey: @{
-            @"AVVideoMasteringDisplayMaximumLuminance": @(1000.0),
-            @"AVVideoMasteringDisplayMinimumLuminance": @(0.0005),
-            @"AVVideoMasteringDisplayPrimaries": @[
-                @[@(0.708), @(0.292)],
-                @[@(0.170), @(0.797)],
-                @[@(0.131), @(0.046)]
-            ],
-            @"AVVideoMasteringDisplayWhitePoint": @[@(0.3127), @(0.3290)]
-        },
-        (NSString*)kCVImageBufferContentLightLevelInfoKey: @{
-            @"AVVideoContentLightLevelMaxContentLightLevel": @(1000),
-            @"AVVideoContentLightLevelMaxAverageLightLevel": @(400)
-        }
-    };
+    // Get the color space from the swapchain to determine appropriate metadata
+    VkColorSpaceKHR colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+    if (_swapchain) {
+        colorSpace = _swapchain->getImageColorSpace();
+    }
     
-    // Start with default metadata
-    [hdrMetadata addEntriesFromDictionary:defaultHDRMetadata];
+    // Set appropriate metadata based on color space
+    switch (colorSpace) {
+        case VK_COLOR_SPACE_SRGB_NONLINEAR_KHR:
+            // Standard sRGB - no HDR metadata needed
+            hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_ITU_R_709_2;
+            hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_ITU_R_709_2;
+            break;
+            
+        case VK_COLOR_SPACE_DISPLAY_P3_NONLINEAR_EXT:
+            hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_ITU_R_709_2;
+            hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_P3_D65;
+            break;
+            
+        case VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT:
+            hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_Linear;
+            hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_ITU_R_709_2;
+            break;
+            
+        case VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT:
+            hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_ITU_R_709_2;
+            hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_ITU_R_709_2;
+            break;
+            
+        case VK_COLOR_SPACE_DISPLAY_P3_LINEAR_EXT:
+            hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_Linear;
+            hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_P3_D65;
+            break;
+            
+        case VK_COLOR_SPACE_DCI_P3_NONLINEAR_EXT:
+            hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_ITU_R_709_2;
+            hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_P3_D65;
+            break;
+            
+        case VK_COLOR_SPACE_BT709_NONLINEAR_EXT:
+            hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_ITU_R_709_2;
+            hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_ITU_R_709_2;
+            break;
+            
+        case VK_COLOR_SPACE_BT2020_LINEAR_EXT:
+            hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_Linear;
+            hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_ITU_R_2020;
+            hdrMetadata[(NSString*)kCVImageBufferYCbCrMatrixKey] = (NSString*)kCVImageBufferYCbCrMatrix_ITU_R_2020;
+            break;
+            
+#if MVK_XCODE_12
+        case VK_COLOR_SPACE_HDR10_ST2084_EXT:
+            // PQ (ST.2084) HDR with BT.2020 color primaries
+            hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ;
+            hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_ITU_R_2020;
+            hdrMetadata[(NSString*)kCVImageBufferYCbCrMatrixKey] = (NSString*)kCVImageBufferYCbCrMatrix_ITU_R_2020;
+            // Add HDR mastering display metadata for ST.2084
+            hdrMetadata[(NSString*)kCVImageBufferMasteringDisplayColorVolumeKey] = @{
+                @"AVVideoMasteringDisplayMaximumLuminance": @(1000.0),
+                @"AVVideoMasteringDisplayMinimumLuminance": @(0.0005),
+                @"AVVideoMasteringDisplayPrimaries": @[
+                    @[@(0.708), @(0.292)],  // Red primary (x,y)
+                    @[@(0.170), @(0.797)],  // Green primary (x,y)
+                    @[@(0.131), @(0.046)]   // Blue primary (x,y)
+                ],
+                @"AVVideoMasteringDisplayWhitePoint": @[@(0.3127), @(0.3290)]    // D65 white point
+            };
+            hdrMetadata[(NSString*)kCVImageBufferContentLightLevelInfoKey] = @{
+                @"AVVideoContentLightLevelMaxContentLightLevel": @(1000),         // MaxCLL 1000 nits
+                @"AVVideoContentLightLevelMaxAverageLightLevel": @(400)          // MaxFALL 400 nits
+            };
+            break;
+            
+        case VK_COLOR_SPACE_HDR10_HLG_EXT:
+            // HLG HDR with BT.2020 color primaries  
+            hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_ITU_R_2100_HLG;
+            hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_ITU_R_2020;
+            hdrMetadata[(NSString*)kCVImageBufferYCbCrMatrixKey] = (NSString*)kCVImageBufferYCbCrMatrix_ITU_R_2020;
+            break;
+#endif
+            
+        case VK_COLOR_SPACE_ADOBERGB_NONLINEAR_EXT:
+            hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_ITU_R_709_2;
+            hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_ITU_R_709_2;  // Fallback to ITU-R 709
+            break;
+            
+        case VK_COLOR_SPACE_PASS_THROUGH_EXT:
+            // Pass through - use minimal metadata
+            break;
+            
+        default:
+            // For unknown color spaces, default to sRGB
+            hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_ITU_R_709_2;
+            hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_ITU_R_709_2;
+            break;
+    }
     
-    // Check if we have cached source HDR metadata
+    // Check if we have cached source HDR metadata that should override defaults
     if (_sourceHDRMetadata) {
         [hdrMetadata addEntriesFromDictionary:_sourceHDRMetadata];
     }
     
-    // Try to extract from source sample buffer first
+    // Try to extract from source sample buffer first (this takes precedence)
     if (sourceSampleBuffer) {
         CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sourceSampleBuffer);
         if (imageBuffer) {
@@ -3194,7 +3280,7 @@ NSDictionary* MVKPresentableSwapchainImage::extractHDRMetadata(CMSampleBufferRef
         }
     }
     
-    // If no source sample buffer, try source pixel buffer
+    // If no source sample buffer, try source pixel buffer  
     if (sourcePixelBuffer && !sourceSampleBuffer) {
         CFDictionaryRef attachments = CVBufferGetAttachments(sourcePixelBuffer, kCVAttachmentMode_ShouldPropagate);
         if (attachments) {

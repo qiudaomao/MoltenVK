@@ -101,6 +101,9 @@ public:
 	/** Marks parts of the underlying CAMetalLayer as needing update. */
 	void setLayerNeedsDisplay(const VkPresentRegionKHR* pRegion);
 
+	/** Returns the color space used for this swapchain. */
+	VkColorSpaceKHR getImageColorSpace() const { return _imageColorSpace; }
+
 	void destroy() override;
 
 #pragma mark Construction
@@ -145,4 +148,5 @@ protected:
 	uint32_t _presentHistoryIndex = 0;
 	uint32_t _presentHistoryHeadIndex = 0;
 	bool _isDeliberatelyScaled = false;
+	VkColorSpaceKHR _imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;  // Store color space for presentable images
 };
