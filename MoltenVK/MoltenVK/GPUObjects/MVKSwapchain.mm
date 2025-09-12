@@ -400,7 +400,8 @@ void MVKSwapchain::setHDRMetadataEXT(const VkHdrMetadataEXT& metadata) {
 MVKSwapchain::MVKSwapchain(MVKDevice* device, const VkSwapchainCreateInfoKHR* pCreateInfo)
 	: MVKVulkanAPIDeviceObject(device),
 	_surface((MVKSurface*)pCreateInfo->surface),
-	_imageExtent(pCreateInfo->imageExtent) {
+	_imageExtent(pCreateInfo->imageExtent),
+	_imageColorSpace(pCreateInfo->imageColorSpace) {
 
 	// Check if oldSwapchain is properly set
 	auto* oldSwapchain = (MVKSwapchain*)pCreateInfo->oldSwapchain;
