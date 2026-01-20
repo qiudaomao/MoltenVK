@@ -3004,7 +3004,9 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
             if ([avLayer respondsToSelector:extendedDynamicRangeSelector]) {
                 #pragma clang diagnostic push
                 #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-                [avLayer performSelector:extendedDynamicRangeSelector withObject:@YES];
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [avLayer performSelector:extendedDynamicRangeSelector withObject:@YES];
+                });
                 #pragma clang diagnostic pop
             }
         }
