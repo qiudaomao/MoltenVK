@@ -2901,30 +2901,29 @@ AVSampleBuffer* MVKPresentableSwapchainImage::getSampleBufferFromPixelBuffer(CVP
                                             &timing,
                                             &sampleBuffer);
     
-    // Attach HDR metadata to the CMSampleBuffer
+    // Attach color metadata to the CMSampleBuffer (AVSampleBufferDisplayLayer may consult these)
+    // Prefer the CVPixelBuffer attachments when available, otherwise fall back to sensible defaults.
+    CFDictionaryRef pbAttachments = CVBufferGetAttachments(pixelBuffer, kCVAttachmentMode_ShouldPropagate);
+    CFTypeRef transferFunction = pbAttachments ? CFDictionaryGetValue(pbAttachments, kCVImageBufferTransferFunctionKey) : NULL;
+    CFTypeRef colorPrimaries = pbAttachments ? CFDictionaryGetValue(pbAttachments, kCVImageBufferColorPrimariesKey) : NULL;
+    CFTypeRef yCbCrMatrix = pbAttachments ? CFDictionaryGetValue(pbAttachments, kCVImageBufferYCbCrMatrixKey) : NULL;
+
     CMSetAttachment(sampleBuffer,
                     kCMFormatDescriptionExtension_ColorPrimaries,
-                    kCMFormatDescriptionColorPrimaries_ITU_R_709_2,
+                    colorPrimaries ? colorPrimaries : kCMFormatDescriptionColorPrimaries_ITU_R_709_2,
                     kCMAttachmentMode_ShouldPropagate);
-    
+
     CMSetAttachment(sampleBuffer,
                     kCMFormatDescriptionExtension_TransferFunction,
-                    kCMFormatDescriptionTransferFunction_ITU_R_709_2, // PQ transfer function
+                    transferFunction ? transferFunction : kCMFormatDescriptionTransferFunction_ITU_R_709_2,
                     kCMAttachmentMode_ShouldPropagate);
-    
+
     CMSetAttachment(sampleBuffer,
                     kCMFormatDescriptionExtension_YCbCrMatrix,
-                    kCMFormatDescriptionYCbCrMatrix_ITU_R_709_2,
+                    yCbCrMatrix ? yCbCrMatrix : kCMFormatDescriptionYCbCrMatrix_ITU_R_709_2,
                     kCMAttachmentMode_ShouldPropagate);
-    NSDictionary *contentLightLevel = @{
-        (NSString *)kCVImageBufferContentLightLevelInfoKey: @{
-            @"MaxCLL": @(10000), // Max content light level
-            @"MaxFALL": @(400)   // Max frame-average light level
-        }
-    };
-    CVBufferSetAttachments(pixelBuffer,
-                           (__bridge CFDictionaryRef)contentLightLevel,
-                           kCVAttachmentMode_ShouldPropagate);
+
+    // Do not overwrite kCVImageBufferContentLightLevelInfoKey here; it should come from extractHDRMetadata().
     
     /*
     // If we have an HDR format, ensure HDR metadata is attached to sample buffer if not already
@@ -2962,12 +2961,17 @@ AVSampleBuffer* MVKPresentableSwapchainImage::getSampleBufferFromPixelBuffer(CVP
 
 // Present to AVSampleBufferDisplayLayer
 VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer> mtlCmdBuff,
-                                                            MVKImagePresentInfo presentInfo) {
+                                                             MVKImagePresentInfo presentInfo) {
     
     AVSampleBufferDisplayLayer *avLayer = _swapchain->getAVSampleBufferDisplayLayer();
     if (!avLayer) {
         return VK_ERROR_SURFACE_LOST_KHR;
     }
+
+    MVKLogInfo("MVK_HDRLOG presentAVSampleBuffer begin: swapchainColorSpace=%d desiredPresentTime=%llu",
+               _swapchain ? _swapchain->getImageColorSpace() : -1,
+               (unsigned long long)presentInfo.desiredPresentTime);
+
     
     // Apply the watermark if necessary
     _swapchain->renderWatermark(getMTLTexture(0), mtlCmdBuff);
@@ -2990,6 +2994,12 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
     // Check if the format is a potential HDR format
     bool isHDRCapableFormat = (mtlTex.pixelFormat == MTLPixelFormatRGB10A2Unorm || 
                               mtlTex.pixelFormat == MTLPixelFormatRGBA16Float);
+
+    MVKLogInfo("MVK_HDRLOG presentAVSampleBuffer texture: mtlPixelFormat=%lu hdrCapable=%d texSize=(%lu,%lu)",
+               (unsigned long)mtlTex.pixelFormat,
+               isHDRCapableFormat,
+               (unsigned long)mtlTex.width,
+               (unsigned long)mtlTex.height);
     
     // Configure extended dynamic range if the format supports it
     if (isHDRCapableFormat) {
@@ -3045,21 +3055,37 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
             // Check color space first
             if (_swapchain) {
                 VkColorSpaceKHR colorSpace = _swapchain->getImageColorSpace();
-#if MVK_XCODE_12
                 if (colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT || colorSpace == VK_COLOR_SPACE_HDR10_HLG_EXT) {
                     forceHDR = true;
                 }
-#endif
+
+                // If upstream requests PASS_THROUGH, do not force HDR tagging here.
+                // We treat PASS_THROUGH as SDR Rec.709 later during metadata attachment.
             }
             
-            // Also check stored metadata as fallback
-            if (!forceHDR && _sourceHDRMetadata) {
-                NSString* transferFunction = _sourceHDRMetadata[(NSString*)kCVImageBufferTransferFunctionKey];
-                if ([transferFunction isEqualToString:(NSString*)kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ] ||
-                    [transferFunction isEqualToString:(NSString*)kCVImageBufferTransferFunction_ITU_R_2100_HLG]) {
-                    forceHDR = true;
-                }
-            }
+             // Also check stored metadata as fallback
+             if (!forceHDR && _sourceHDRMetadata) {
+                 NSString* transferFunction = _sourceHDRMetadata[(NSString*)kCVImageBufferTransferFunctionKey];
+                 if ([transferFunction isEqualToString:(NSString*)kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ] ||
+                     [transferFunction isEqualToString:(NSString*)kCVImageBufferTransferFunction_ITU_R_2100_HLG]) {
+                     forceHDR = true;
+                 }
+             }
+
+             MVKLogInfo("MVK_HDRLOG RGB10A2 present: forceHDR=%d swapchainColorSpace=%d hasSourceHDRMetadata=%d",
+                        forceHDR,
+                        _swapchain ? _swapchain->getImageColorSpace() : -1,
+                        _sourceHDRMetadata != nil);
+
+             if (_swapchain) {
+                 VkColorSpaceKHR colorSpace = _swapchain->getImageColorSpace();
+                 MVKLogInfo("MVK_HDRLOG RGB10A2 present debug: swapchain=%p colorSpace=%d HDR10_ST2084=%d HDR10_HLG=%d",
+                            _swapchain,
+                            colorSpace,
+                            (int)VK_COLOR_SPACE_HDR10_ST2084_EXT,
+                            (int)VK_COLOR_SPACE_HDR10_HLG_EXT);
+             }
+
             
             pixelBuffer = createConvertedPixelBufferForRGB10A2(mtlTex, nullptr, nullptr, forceHDR);
         } else {
@@ -3067,11 +3093,13 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
             pixelBuffer = getPixelBufferFromMTLTexture(mtlTex);
         }
         
-        if (!pixelBuffer) {
-            MVKLogError("Failed to create CVPixelBuffer from MTLTexture for AVSampleBufferDisplayLayer");
-            endPresentation(presentInfo, signaler);
-            return;
-        }
+         if (!pixelBuffer) {
+             MVKLogError("MVK_HDRLOG Failed to create CVPixelBuffer from MTLTexture for AVSampleBufferDisplayLayer");
+             endPresentation(presentInfo, signaler);
+             return;
+         }
+
+
         
         // Create format description and timing info for the sample buffer
         CMVideoFormatDescriptionRef formatDescription = nil;
@@ -3103,18 +3131,26 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
         // Clean up format description
         CFRelease(formatDescription);
         
-        if (status == noErr && sampleBuffer) {
-            // Check again that layer is still valid before enqueueing
-            if (capturedLayer && capturedLayer.status != AVQueuedSampleBufferRenderingStatusFailed) {
-                // Flush any old frames before enqueueing new one to prevent backlog
-                [capturedLayer flush];
-                
-                // Enqueue the sample buffer
-                [capturedLayer enqueueSampleBuffer:sampleBuffer];
-                
-                // Set video gravity (equivalent to contentsGravity in CALayer)
-                capturedLayer.videoGravity = AVLayerVideoGravityResizeAspect;
-            }
+         if (status == noErr && sampleBuffer) {
+             // Check again that layer is still valid before enqueueing
+             if (capturedLayer && capturedLayer.status != AVQueuedSampleBufferRenderingStatusFailed) {
+                 CFStringRef csName = capturedLayer.colorspaceNameMVK;
+                 MVKLogInfo("MVK_HDRLOG enqueueSampleBuffer: layerStatus=%ld hasEDRSelector=%d wantsEDR_MVK=%d colorspaceNameMVK=%s",
+                            (long)capturedLayer.status,
+                            [capturedLayer respondsToSelector:NSSelectorFromString(@"setWantsExtendedDynamicRangeContent:")],
+                            (int)capturedLayer.wantsExtendedDynamicRangeContentMVK,
+                            csName ? CFStringGetCStringPtr(csName, kCFStringEncodingUTF8) : "(null)");
+
+                 // Flush any old frames before enqueueing new one to prevent backlog
+                 [capturedLayer flush];
+                 
+                 // Enqueue the sample buffer
+                 [capturedLayer enqueueSampleBuffer:sampleBuffer];
+                 
+                 // Set video gravity (equivalent to contentsGravity in CALayer)
+                 capturedLayer.videoGravity = AVLayerVideoGravityResizeAspect;
+             }
+
             
             CFRelease(sampleBuffer);
             
@@ -3159,10 +3195,12 @@ NSDictionary* MVKPresentableSwapchainImage::extractHDRMetadata(CMSampleBufferRef
     NSMutableDictionary* hdrMetadata = [NSMutableDictionary dictionary];
     
     // Get the color space from the swapchain to determine appropriate metadata
-    VkColorSpaceKHR colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-    if (_swapchain) {
-        colorSpace = _swapchain->getImageColorSpace();
-    }
+VkColorSpaceKHR colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+if (_swapchain) {
+    colorSpace = _swapchain->getImageColorSpace();
+}
+
+
     
     // Set appropriate metadata based on color space
     switch (colorSpace) {
@@ -3208,7 +3246,6 @@ NSDictionary* MVKPresentableSwapchainImage::extractHDRMetadata(CMSampleBufferRef
             hdrMetadata[(NSString*)kCVImageBufferYCbCrMatrixKey] = (NSString*)kCVImageBufferYCbCrMatrix_ITU_R_2020;
             break;
             
-#if MVK_XCODE_12
         case VK_COLOR_SPACE_HDR10_ST2084_EXT:
             // PQ (ST.2084) HDR with BT.2020 color primaries
             hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_SMPTE_ST_2084_PQ;
@@ -3237,7 +3274,6 @@ NSDictionary* MVKPresentableSwapchainImage::extractHDRMetadata(CMSampleBufferRef
             hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_ITU_R_2020;
             hdrMetadata[(NSString*)kCVImageBufferYCbCrMatrixKey] = (NSString*)kCVImageBufferYCbCrMatrix_ITU_R_2020;
             break;
-#endif
             
         case VK_COLOR_SPACE_ADOBERGB_NONLINEAR_EXT:
             hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_ITU_R_709_2;
@@ -3245,7 +3281,11 @@ NSDictionary* MVKPresentableSwapchainImage::extractHDRMetadata(CMSampleBufferRef
             break;
             
         case VK_COLOR_SPACE_PASS_THROUGH_EXT:
-            // Pass through - use minimal metadata
+            // Treat PASS_THROUGH as SDR Rec.709 for AVSampleBufferDisplayLayer tagging.
+            // (Otherwise SDR content can be interpreted unpredictably on iOS when using 10-bit RGB buffers.)
+            hdrMetadata[(NSString*)kCVImageBufferTransferFunctionKey] = (NSString*)kCVImageBufferTransferFunction_ITU_R_709_2;
+            hdrMetadata[(NSString*)kCVImageBufferColorPrimariesKey] = (NSString*)kCVImageBufferColorPrimaries_ITU_R_709_2;
+            hdrMetadata[(NSString*)kCVImageBufferYCbCrMatrixKey] = (NSString*)kCVImageBufferYCbCrMatrix_ITU_R_709_2;
             break;
             
         default:
@@ -3329,20 +3369,29 @@ CVPixelBufferRef MVKPresentableSwapchainImage::createConvertedPixelBufferForRGB1
         (NSString*)kCVPixelBufferIOSurfacePropertiesKey: @{}
     }];
     
-    // Add extracted HDR metadata to pixel buffer attributes
-    [pixelBufferAttributes addEntriesFromDictionary:hdrMetadata];
+     // NOTE: CVPixelBufferCreate attributes are not the same thing as CVImageBuffer attachments.
+     // Keep the creation attributes minimal, and set HDR metadata as attachments after creation.
+     CVReturn cvReturn = CVPixelBufferCreate(kCFAllocatorDefault,
+                                           mtlTexture.width,
+                                           mtlTexture.height,
+                                           kCVPixelFormatType_ARGB2101010LEPacked,
+                                           (__bridge CFDictionaryRef)pixelBufferAttributes,
+                                           &pixelBuffer);
+
     
-    CVReturn cvReturn = CVPixelBufferCreate(kCFAllocatorDefault,
-                                          mtlTexture.width,
-                                          mtlTexture.height,
-                                          kCVPixelFormatType_ARGB2101010LEPacked,
-                                          (__bridge CFDictionaryRef)pixelBufferAttributes,
-                                          &pixelBuffer);
-    
-    if (cvReturn != kCVReturnSuccess || !pixelBuffer) {
-        MVKLogError("Failed to create CVPixelBuffer: %d", cvReturn);
-        return nil;
-    }
+     if (cvReturn != kCVReturnSuccess || !pixelBuffer) {
+         MVKLogError("Failed to create CVPixelBuffer: %d", cvReturn);
+         return nil;
+     }
+
+     // Apply HDR color metadata as CVImageBuffer attachments.
+     // Without this, AVSampleBufferDisplayLayer tends to see an untagged 10-bit buffer and treat it like SDR.
+     if (hdrMetadata && hdrMetadata.count > 0) {
+         CVBufferSetAttachments(pixelBuffer,
+                                (__bridge CFDictionaryRef)hdrMetadata,
+                                kCVAttachmentMode_ShouldPropagate);
+     }
+
     
     // Initialize the shader components once
     static dispatch_once_t onceToken;
