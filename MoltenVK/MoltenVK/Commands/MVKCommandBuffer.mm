@@ -1305,26 +1305,34 @@ void MVKCommandEncoder::resetQueries(MVKQueryPool* pQueryPool, uint32_t firstQue
 
 // Marks the specified queries as activated
 void MVKCommandEncoder::addActivatedQueries(MVKQueryPool* pQueryPool, uint32_t query, uint32_t queryCount) {
-    if ( !_pActivatedQueries ) { _pActivatedQueries = new MVKActivatedQueries(); }
-    uint32_t endQuery = query + queryCount;
-    while (query < endQuery) {
-        (*_pActivatedQueries)[pQueryPool].push_back(query++);
-    }
+	if ( !_pActivatedQueries ) { _pActivatedQueries = new MVKActivatedQueries(); }
+
+	auto qryPair = _pActivatedQueries->find(pQueryPool);
+	if (qryPair == _pActivatedQueries->end()) {
+		pQueryPool->retain();
+		qryPair = _pActivatedQueries->emplace(pQueryPool, MVKSmallVector<uint32_t, kMVKDefaultQueryCount>()).first;
+	}
+
+	uint32_t endQuery = query + queryCount;
+	while (query < endQuery) {
+		qryPair->second.push_back(query++);
+	}
 }
 
 // Register a command buffer completion handler that finishes each activated query.
 // Ownership of the collection of activated queries is passed to the handler.
 void MVKCommandEncoder::finishQueries() {
-    if ( !_pActivatedQueries ) { return; }
+	if ( !_pActivatedQueries ) { return; }
 
-    MVKActivatedQueries* pAQs = _pActivatedQueries;
-    [_mtlCmdBuffer addCompletedHandler: ^(id<MTLCommandBuffer> mtlCmdBuff) {
-        for (auto& qryPair : *pAQs) {
-            qryPair.first->finishQueries(qryPair.second.contents());
-        }
-        delete pAQs;
-    }];
-    _pActivatedQueries = nullptr;
+	MVKActivatedQueries* pAQs = _pActivatedQueries;
+	[_mtlCmdBuffer addCompletedHandler: ^(id<MTLCommandBuffer> mtlCmdBuff) {
+		for (auto& qryPair : *pAQs) {
+			qryPair.first->finishQueries(qryPair.second.contents());
+			qryPair.first->release();
+		}
+		delete pAQs;
+	}];
+	_pActivatedQueries = nullptr;
 }
 
 
