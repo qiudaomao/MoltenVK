@@ -32,7 +32,6 @@
 
 #import "CAMetalLayer+MoltenVK.h"
 #import "AVSampleBufferDisplayLayer+MoltenVK.h"
-#import "MTLTextureDescriptor+MoltenVK.h"
 #import "MTLSamplerDescriptor+MoltenVK.h"
 #import <CoreVideo/CoreVideo.h>
 #import <CoreMedia/CoreMedia.h>
@@ -444,7 +443,6 @@ void MVKImagePlane::pullFromDeviceOnCompletion(MVKCommandEncoder* cmdEncoder,
 MVKImagePlane::MVKImagePlane(MVKImage* image, uint8_t planeIndex) {
     _image = image;
     _planeIndex = planeIndex;
-    [_mtlTexture release];
     _mtlTexture = nil;
 }
 
@@ -1813,12 +1811,11 @@ void MVKPresentableSwapchainImage::makeAvailable() {
 
 	_beginPresentTime = 0;
 
-	// For each signaler that is tracking, signal and untrack it.
-	for (auto& signaler : _availabilitySignalers) { signalAndUntrack(signaler); }
-	_availabilitySignalers.clear();
-	
-	// Mark this image as available if not already marked as such.
 	if ( !_availability.isAvailable ) {
+		// Signal and untrack all waiters for this acquisition.
+		signalAndUntrack(_preSignaler);
+		for (auto& signaler : _availabilitySignalers) { signalAndUntrack(signaler); }
+		_availabilitySignalers.clear();
 		_availability.isAvailable = true;
 		_availability.acquisitionID = _swapchain->getNextAcquisitionID();
 	}
@@ -2034,7 +2031,6 @@ MVKImageViewPlane::MVKImageViewPlane(MVKImageView* imageView,
     _imageView = imageView;
     _planeIndex = planeIndex;
     _mtlPixFmt = mtlPixFmt;
-    [_mtlTexture release];
     _mtlTexture = nil;
 
 	getVulkanAPIObject()->setConfigurationResult(initSwizzledMTLPixelFormat(pCreateInfo));
@@ -2782,9 +2778,11 @@ AVSampleBuffer* MVKPresentableSwapchainImage::getSampleBufferFromPixelBuffer(CVP
     CMVideoFormatDescriptionCreateForImageBuffer(kCFAllocatorDefault, pixelBuffer, &formatDescription);
     
     // Check if we have a 10-bit format that might contain HDR content
+    /*
     OSType pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer);
     bool isHDRFormat = (pixelFormat == kCVPixelFormatType_ARGB2101010LEPacked || 
                         pixelFormat == kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange);
+                        */
     
     // Use dynamic frame rate based on system capabilities, but default to 30fps
     CMSampleTimingInfo timing = {
@@ -2868,9 +2866,11 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
         return VK_ERROR_SURFACE_LOST_KHR;
     }
 
+    /*
     MVKLogInfo("MVK_HDRLOG presentAVSampleBuffer begin: swapchainColorSpace=%d desiredPresentTime=%llu",
                _swapchain ? _swapchain->getImageColorSpace() : -1,
                (unsigned long long)presentInfo.desiredPresentTime);
+               */
 
     
     // Apply the watermark if necessary
@@ -2885,7 +2885,7 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
     MVKSwapchainSignaler signaler = getPresentationSignaler();
     
     // Make sure we have a valid texture for presentation
-    __block id<MTLTexture> mtlTex = getMTLTexture(0);
+    id<MTLTexture> mtlTex = [getMTLTexture(0) retain];
     if (!mtlTex) {
         signalAndUntrack(signaler);
         return VK_ERROR_SURFACE_LOST_KHR;
@@ -2895,11 +2895,13 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
     bool isHDRCapableFormat = (mtlTex.pixelFormat == MTLPixelFormatRGB10A2Unorm || 
                               mtlTex.pixelFormat == MTLPixelFormatRGBA16Float);
 
+    /*
     MVKLogInfo("MVK_HDRLOG presentAVSampleBuffer texture: mtlPixelFormat=%lu hdrCapable=%d texSize=(%lu,%lu)",
                (unsigned long)mtlTex.pixelFormat,
                isHDRCapableFormat,
                (unsigned long)mtlTex.width,
                (unsigned long)mtlTex.height);
+               */
     
     // Configure extended dynamic range if the format supports it
     if (isHDRCapableFormat) {
@@ -2933,13 +2935,26 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
     // Use static frame counter to ensure unique timestamps for each frame
     static uint64_t frameCounter = 0;
     __block uint64_t currentFrame = frameCounter++;
+    auto* fence = presentInfo.fence;
+
+    // Ensure this image and fence are not destroyed while awaiting command buffer completion.
+    retain();
+    if (fence) { fence->retain(); }
     
-    // On scheduled handler, convert texture to pixel buffer and enqueue to AVSampleBufferDisplayLayer
+    // Convert texture to pixel buffer and enqueue only after rendering has completed.
     __block AVSampleBufferDisplayLayer *capturedLayer = avLayer;
-    [mtlCmdBuff addScheduledHandler:^(id<MTLCommandBuffer> mcb) {
+    [mtlCmdBuff addCompletedHandler:^(id<MTLCommandBuffer> mcb) {
+        if (mcb.status == MTLCommandBufferStatusError) {
+            MVKLogError("Command buffer completed with error: %d", (int)mcb.error.code);
+        }
+
         // Ensure the layer is still valid and hasn't been invalidated by rotation
         if (!capturedLayer || capturedLayer.status == AVQueuedSampleBufferRenderingStatusFailed) {
             endPresentation(presentInfo, signaler);
+            [mtlTex release];
+            signal(fence);
+            if (fence) { fence->release(); }
+            release();
             return;
         }
         
@@ -2972,6 +2987,7 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
                  }
              }
 
+             /*
              MVKLogInfo("MVK_HDRLOG RGB10A2 present: forceHDR=%d swapchainColorSpace=%d hasSourceHDRMetadata=%d",
                         forceHDR,
                         _swapchain ? _swapchain->getImageColorSpace() : -1,
@@ -2985,6 +3001,7 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
                             (int)VK_COLOR_SPACE_HDR10_ST2084_EXT,
                             (int)VK_COLOR_SPACE_HDR10_HLG_EXT);
              }
+                            */
 
             
             pixelBuffer = createConvertedPixelBufferForRGB10A2(mtlTex, nullptr, nullptr, forceHDR);
@@ -2994,8 +3011,12 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
         }
         
          if (!pixelBuffer) {
-             MVKLogError("MVK_HDRLOG Failed to create CVPixelBuffer from MTLTexture for AVSampleBufferDisplayLayer");
+             // MVKLogError("MVK_HDRLOG Failed to create CVPixelBuffer from MTLTexture for AVSampleBufferDisplayLayer");
              endPresentation(presentInfo, signaler);
+             [mtlTex release];
+             signal(fence);
+             if (fence) { fence->release(); }
+             release();
              return;
          }
 
@@ -3034,12 +3055,14 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
          if (status == noErr && sampleBuffer) {
              // Check again that layer is still valid before enqueueing
              if (capturedLayer && capturedLayer.status != AVQueuedSampleBufferRenderingStatusFailed) {
+                 /*
                  CFStringRef csName = capturedLayer.colorspaceNameMVK;
                  MVKLogInfo("MVK_HDRLOG enqueueSampleBuffer: layerStatus=%ld hasEDRSelector=%d wantsEDR_MVK=%d colorspaceNameMVK=%s",
                             (long)capturedLayer.status,
                             [capturedLayer respondsToSelector:NSSelectorFromString(@"setWantsExtendedDynamicRangeContent:")],
                             (int)capturedLayer.wantsExtendedDynamicRangeContentMVK,
                             csName ? CFStringGetCStringPtr(csName, kCFStringEncodingUTF8) : "(null)");
+                            */
 
                  // Flush any old frames before enqueueing new one to prevent backlog
                  [capturedLayer flush];
@@ -3063,28 +3086,13 @@ VkResult MVKPresentableSwapchainImage::presentAVSampleBuffer(id<MTLCommandBuffer
         
         // Release pixel buffer
         CVPixelBufferRelease(pixelBuffer);
-    }];
-    
-    // Ensure this image and fence are not destroyed while awaiting MTLCommandBuffer completion
-    retain();
-    auto* fence = presentInfo.fence;
-    if (fence) { fence->retain(); }
-    
-    // We're already using capturedLayer in the scheduled handler, no need to redefine it here
-    
-    [mtlCmdBuff addCompletedHandler: ^(id<MTLCommandBuffer> mcb) {
-        // Check completion status for debugging
-        if (mcb.status == MTLCommandBufferStatusError) {
-            MVKLogError("Command buffer completed with error: %d", (int)mcb.error.code);
-        }
-        
-        // No need to clear capturedLayer as it's already captured in the scheduled handler
-        
+        [mtlTex release];
+
         signal(fence);
         if (fence) { fence->release(); }
         release();
     }];
-    
+
     signal(signaler.semaphore, signaler.semaphoreSignalToken, mtlCmdBuff);
     
     return getConfigurationResult();
@@ -3246,15 +3254,9 @@ if (_swapchain) {
 // Helper method to properly convert RGB10A2Unorm to ARGB2101010 format using Metal shader
 CVPixelBufferRef MVKPresentableSwapchainImage::createConvertedPixelBufferForRGB10A2(id<MTLTexture> mtlTexture, CMSampleBufferRef sourceSampleBuffer, CVPixelBufferRef sourcePixelBuffer, bool forceHDRProcessing) {
     if (!mtlTexture) { return nil; }
-    
-    // Retain the texture at the start since we'll be using it
-    [mtlTexture retain];
-    
+
     id<MTLDevice> device = ((MVKSwapchainImage*)this)->getMTLDevice();
-    if (!device) {
-        [mtlTexture release];  // Release if we're returning early
-        return nil;
-    }
+    if (!device) { return nil; }
     
     // Extract HDR metadata from source buffer
     NSDictionary* hdrMetadata = extractHDRMetadata(sourceSampleBuffer, sourcePixelBuffer);
@@ -3418,11 +3420,34 @@ CVPixelBufferRef MVKPresentableSwapchainImage::createConvertedPixelBufferForRGB1
     id<MTLBuffer> bytesPerRowBuffer = [device newBufferWithBytes:&bytesPerRow
                                                          length:sizeof(uint32_t)
                                                         options:MTLResourceStorageModeShared];
+    if (!outputBuffer || !bytesPerRowBuffer) {
+        CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+        [outputBuffer release];
+        [bytesPerRowBuffer release];
+        CVPixelBufferRelease(pixelBuffer);
+        return nil;
+    }
     
     // Execute the shader
     id<MTLCommandQueue> commandQueue = [device newCommandQueue];
+    if (!commandQueue) {
+        CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+        [outputBuffer release];
+        [bytesPerRowBuffer release];
+        CVPixelBufferRelease(pixelBuffer);
+        return nil;
+    }
+
     id<MTLCommandBuffer> commandBuffer = [commandQueue commandBuffer];
     id<MTLComputeCommandEncoder> computeEncoder = [commandBuffer computeCommandEncoder];
+    if (!commandBuffer || !computeEncoder) {
+        CVPixelBufferUnlockBaseAddress(pixelBuffer, 0);
+        [outputBuffer release];
+        [bytesPerRowBuffer release];
+        [commandQueue release];
+        CVPixelBufferRelease(pixelBuffer);
+        return nil;
+    }
     
     [computeEncoder setComputePipelineState:pipelineState];
     [computeEncoder setTexture:mtlTexture atIndex:0];
@@ -3451,9 +3476,6 @@ CVPixelBufferRef MVKPresentableSwapchainImage::createConvertedPixelBufferForRGB1
     [bytesPerRowBuffer release];
     [forceHDRBuffer release];
     [commandQueue release];
-    
-    // Make sure to release the texture before returning
-    [mtlTexture release];
     
     return pixelBuffer;
 }

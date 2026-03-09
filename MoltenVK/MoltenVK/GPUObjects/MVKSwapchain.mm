@@ -505,6 +505,7 @@ void MVKSwapchain::initCAMetalLayer(const VkSwapchainCreateInfoKHR* pCreateInfo,
 	auto* mtlLayer = getCAMetalLayer();
 	if ( !mtlLayer || getIsSurfaceLost() ) { return; }
 
+	/*
 	MVKLogInfo("MVK_HDRLOG swapchain init CAMetalLayer: imageFormat=%d imageColorSpace=%d minImageCount=%u extent=(%u,%u) presentMode=%d",
 			   pCreateInfo->imageFormat,
 			   pCreateInfo->imageColorSpace,
@@ -512,12 +513,13 @@ void MVKSwapchain::initCAMetalLayer(const VkSwapchainCreateInfoKHR* pCreateInfo,
 			   pCreateInfo->imageExtent.width,
 			   pCreateInfo->imageExtent.height,
 			   pCreateInfo->presentMode);
+			   */
 
 	auto minMagFilter = getMVKConfig().swapchainMinMagFilterUseNearest ? kCAFilterNearest : kCAFilterLinear;
 	mtlLayer.drawableSize = mvkCGSizeFromVkExtent2D(_imageExtent);
 	mtlLayer.device = getMTLDevice();
 	mtlLayer.pixelFormat = getPixelFormats()->getMTLPixelFormat(pCreateInfo->imageFormat);
-	MVKLogInfo("MVK_HDRLOG CAMetalLayer configured: mtlPixelFormat=%lu", (unsigned long)mtlLayer.pixelFormat);
+	// MVKLogInfo("MVK_HDRLOG CAMetalLayer configured: mtlPixelFormat=%lu", (unsigned long)mtlLayer.pixelFormat);
 	mtlLayer.maximumDrawableCount = imgCnt;
 	mtlLayer.displaySyncEnabledMVK = (pCreateInfo->presentMode != VK_PRESENT_MODE_IMMEDIATE_KHR);
 	mtlLayer.minificationFilter = minMagFilter;
@@ -578,12 +580,12 @@ void MVKSwapchain::initCAMetalLayer(const VkSwapchainCreateInfoKHR* pCreateInfo,
 		case VK_COLOR_SPACE_HDR10_ST2084_EXT:
 			mtlLayer.colorspaceNameMVK = kCGColorSpaceITUR_2100_PQ;
 			mtlLayer.wantsExtendedDynamicRangeContentMVK = YES;
-			MVKLogInfo("MVK_HDRLOG CAMetalLayer colorspace: HDR10_ST2084 -> ITUR_2100_PQ, wantsEDR=YES");
+			// MVKLogInfo("MVK_HDRLOG CAMetalLayer colorspace: HDR10_ST2084 -> ITUR_2100_PQ, wantsEDR=YES");
 			break;
 		case VK_COLOR_SPACE_HDR10_HLG_EXT:
 			mtlLayer.colorspaceNameMVK = kCGColorSpaceITUR_2100_HLG;
 			mtlLayer.wantsExtendedDynamicRangeContentMVK = YES;
-			MVKLogInfo("MVK_HDRLOG CAMetalLayer colorspace: HDR10_HLG -> ITUR_2100_HLG, wantsEDR=YES");
+			// MVKLogInfo("MVK_HDRLOG CAMetalLayer colorspace: HDR10_HLG -> ITUR_2100_HLG, wantsEDR=YES");
 			break;
 		case VK_COLOR_SPACE_ADOBERGB_NONLINEAR_EXT:
 			mtlLayer.colorspaceNameMVK = kCGColorSpaceAdobeRGB1998;
@@ -611,6 +613,7 @@ void MVKSwapchain::initAVSampleBufferDisplayLayer(const VkSwapchainCreateInfoKHR
     auto* avLayer = getAVSampleBufferDisplayLayer();
     if (!avLayer || getIsSurfaceLost()) { return; }
 
+    /*
     MVKLogInfo("MVK_HDRLOG swapchain init AVSampleBufferDisplayLayer: imageFormat=%d imageColorSpace=%d minImageCount=%u extent=(%u,%u) presentMode=%d",
                pCreateInfo->imageFormat,
                pCreateInfo->imageColorSpace,
@@ -618,12 +621,13 @@ void MVKSwapchain::initAVSampleBufferDisplayLayer(const VkSwapchainCreateInfoKHR
                pCreateInfo->imageExtent.width,
                pCreateInfo->imageExtent.height,
                pCreateInfo->presentMode);
+               */
 
     
     // Setup AVSampleBufferDisplayLayer using our Metal extension properties
     avLayer.device = getMTLDevice();
     avLayer.pixelFormat = getPixelFormats()->getMTLPixelFormat(pCreateInfo->imageFormat);
-    MVKLogInfo("MVK_HDRLOG AVSampleBufferDisplayLayer configured: mtlPixelFormat=%lu", (unsigned long)avLayer.pixelFormat);
+    // MVKLogInfo("MVK_HDRLOG AVSampleBufferDisplayLayer configured: mtlPixelFormat=%lu", (unsigned long)avLayer.pixelFormat);
     avLayer.maximumDrawableCountMVK = imgCnt;
     avLayer.displaySyncEnabledMVK = (pCreateInfo->presentMode != VK_PRESENT_MODE_IMMEDIATE_KHR);
     
@@ -664,12 +668,12 @@ void MVKSwapchain::initAVSampleBufferDisplayLayer(const VkSwapchainCreateInfoKHR
         case VK_COLOR_SPACE_HDR10_ST2084_EXT:
             avLayer.colorspaceNameMVK = kCGColorSpaceITUR_2100_PQ;
             avLayer.wantsExtendedDynamicRangeContentMVK = YES;
-            MVKLogInfo("MVK_HDRLOG AVSampleBufferDisplayLayer colorspace: HDR10_ST2084 -> ITUR_2100_PQ, wantsEDR=YES");
+            // MVKLogInfo("MVK_HDRLOG AVSampleBufferDisplayLayer colorspace: HDR10_ST2084 -> ITUR_2100_PQ, wantsEDR=YES");
             break;
         case VK_COLOR_SPACE_HDR10_HLG_EXT:
             avLayer.colorspaceNameMVK = kCGColorSpaceITUR_2100_HLG;
             avLayer.wantsExtendedDynamicRangeContentMVK = YES;
-            MVKLogInfo("MVK_HDRLOG AVSampleBufferDisplayLayer colorspace: HDR10_HLG -> ITUR_2100_HLG, wantsEDR=YES");
+            // MVKLogInfo("MVK_HDRLOG AVSampleBufferDisplayLayer colorspace: HDR10_HLG -> ITUR_2100_HLG, wantsEDR=YES");
             break;
         case VK_COLOR_SPACE_ADOBERGB_NONLINEAR_EXT:
             avLayer.colorspaceNameMVK = kCGColorSpaceAdobeRGB1998;
